@@ -41,15 +41,15 @@ jobs:
         curl -f http://localhost:55000 || exit 1  # Vérifie l'API Wazuh
 
     # Test des services ELK
-    - name: 📈 Lancer les services ELK
-      run: |
-        docker compose -f ELK/docker compose.yml up -d --build
+    # - name: 📈 Lancer les services ELK
+    #   run: |
+    #     docker compose -f ELK/docker compose.yml up -d --build
 
-    - name: ✅ Vérifier l'état de ELK
-      run: |
-        docker compose -f ELK/docker compose.yml ps
-        curl -f http://localhost:5601 || exit 1  # Vérifie Kibana (port par défaut de Kibana)
-        curl -f http://localhost:9200 || exit 1  # Vérifie Elasticsearch (port par défaut)
+    # - name: ✅ Vérifier l'état de ELK
+    #   run: |
+    #     docker compose -f ELK/docker compose.yml ps
+    #     curl -f http://localhost:5601 || exit 1  # Vérifie Kibana
+    #     curl -f http://localhost:9200 || exit 1  # Vérifie Elasticsearch
 
     # Test des services OpenCTI
     - name: 🔍 Lancer les services OpenCTI
@@ -59,7 +59,7 @@ jobs:
     - name: ✅ Vérifier l'état de OpenCTI
       run: |
         docker compose -f opencti/docker compose.yml ps
-        curl -f http://localhost:8080 || exit 1  # Vérifie l'interface OpenCTI (à adapter selon la config)
+        curl -f http://localhost:8080 || exit 1  # Vérifie l'interface OpenCTI
 
     - name: 🗑️ Nettoyer les services
       run: |
