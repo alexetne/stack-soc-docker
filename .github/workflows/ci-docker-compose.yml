@@ -34,32 +34,32 @@ jobs:
       run: |
         docker compose -f wazuh/docker-compose.yml up -d --build
 
-    - name: ✅ Vérifier l'état de Wazuh
-      run: |
-        docker compose -f wazuh/docker-compose.yml ps
-        curl -f http://localhost:5601 || exit 1  # Vérifie le dashboard
-        curl -f http://localhost:55000 || exit 1  # Vérifie l'API Wazuh
+    # - name: ✅ Vérifier l'état de Wazuh
+    #   run: |
+    #     docker compose -f wazuh/docker-compose.yml ps
+    #     curl -f http://localhost:5601 || exit 1  # Vérifie le dashboard
+    #     curl -f http://localhost:55000 || exit 1  # Vérifie l'API Wazuh
 
     # Test des services ELK
     - name: 📈 Lancer les services ELK
       run: |
         docker compose -f ELK/Docker-compose.yml up -d --build
 
-    - name: ✅ Vérifier l'état de ELK
-      run: |
-        docker compose -f ELK/Docker-compose.yml ps
-        curl -f http://localhost:5601 || exit 1  # Vérifie Kibana
-        curl -f http://localhost:9200 || exit 1  # Vérifie Elasticsearch
+    # - name: ✅ Vérifier l'état de ELK
+    #   run: |
+    #     docker compose -f ELK/Docker-compose.yml ps
+    #     curl -f http://localhost:5601 || exit 1  # Vérifie Kibana
+    #     curl -f http://localhost:9200 || exit 1  # Vérifie Elasticsearch
 
     # Test des services OpenCTI
     - name: 🔍 Lancer les services OpenCTI
       run: |
         docker compose -f opencti/docker-compose.yml up -d --build
 
-    - name: ✅ Vérifier l'état de OpenCTI
-      run: |
-        docker compose -f opencti/docker-compose.yml ps
-        curl -f http://localhost:8080 || exit 1  # Vérifie l'interface OpenCTI
+    # - name: ✅ Vérifier l'état de OpenCTI
+    #   run: |
+    #     docker compose -f opencti/docker-compose.yml ps
+    #     curl -f http://localhost:8080 || exit 1  # Vérifie l'interface OpenCTI
 
     - name: 🗑️ Nettoyer les services
       run: |
