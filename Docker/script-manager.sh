@@ -2,9 +2,10 @@
 
 #Update de la VM
 echo "update de la VM"
-
 sudo apt update
 sudo apt upgrade -y
+
+#Installation de docker
 sudo apt-get install -y ca-certificates curl
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
