@@ -22,25 +22,25 @@ jobs:
     # Test des services Suricata
     - name: 🛡️ Lancer les services Suricata
       run: |
-        docker compose -f /suricata/docker-compose.yml up -d --build
+        docker compose -f suricata/docker-compose.yml up -d --build
 
     - name: ✅ Vérifier l'état de Suricata
       run: |
-        docker compose -f /suricata/docker-compose.yml ps
+        docker compose -f suricata/docker-compose.yml ps
         docker exec suricata suricata -V || exit 1
 
     # Test des services Wazuh
     - name: 📊 Lancer les services Wazuh
       run: |
-        docker compose -f /wazuh/docker-compose.yml up -d --build
+        docker compose -f wazuh/docker-compose.yml up -d --build
 
     - name: ✅ Vérifier l'état de Wazuh
       run: |
-        docker compose -f /wazuh/docker-compose.yml ps
+        docker compose -f wazuh/docker-compose.yml ps
         curl -f http://localhost:5601 || exit 1  # Vérifie le dashboard
         curl -f http://localhost:55000 || exit 1  # Vérifie l'API Wazuh
 
     - name: 🗑️ Nettoyer les services
       run: |
-        docker compose -f /suricata/docker-compose.yml down
-        docker compose -f /wazuh/docker-compose.yml down
+        docker compose -f suricata/docker-compose.yml down
+        docker compose -f wazuh/docker-compose.yml down
