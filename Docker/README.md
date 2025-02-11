@@ -51,3 +51,9 @@ Ces commandes permettent de reproduire les commandes CLI suivantes :
 
 ### Se rendre dans le menu des env `Environment-related` :
 ![menu-env](./img/env-menu.png)
+
+### Ajouter un nouvel env Swarm :
+![swarm-add](./img/docker-swarm-agent-connect.png)
+
+### Remplir les champs avec l'IP du manager :
+![update-champs](./img/update-champs.png)
