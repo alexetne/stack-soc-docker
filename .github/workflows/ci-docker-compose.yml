@@ -42,5 +42,5 @@ jobs:
 
     - name: 🗑️ Nettoyer les services
       run: |
-        docker compose -f suricata/docker-compose.yml down
+        docker compose -f Suricata/docker-compose.yml down
         docker compose -f wazuh/docker-compose.yml down
