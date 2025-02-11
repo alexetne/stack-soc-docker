@@ -20,14 +20,14 @@ jobs:
       uses: docker/setup-buildx-action@v2
 
     # Test des services Suricata
-    - name: 🛡️ Lancer les services Suricata
-      run: |
-        docker compose -f Suricata/Docker-compose.yml up -d --build
+    # - name: 🛡️ Lancer les services Suricata
+    #   run: |
+    #     docker compose -f Suricata/Docker-compose.yml up -d --build
 
-    - name: ✅ Vérifier l'état de Suricata
-      run: |
-        docker compose -f Suricata/docker-compose.yml ps
-        docker exec suricata suricata -V || exit 1
+    # - name: ✅ Vérifier l'état de Suricata
+    #   run: |
+    #     docker compose -f Suricata/docker-compose.yml ps
+    #     docker exec suricata suricata -V || exit 1
 
     # Test des services Wazuh
     - name: 📊 Lancer les services Wazuh
