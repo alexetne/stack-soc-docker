@@ -42,3 +42,8 @@ echo "50% effectué"
 sudo docker run -d -p 8000:8000 -p 9443:9443 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:2.21.5
 echo "100% effectué"
 echo "fin de l'installation de portainer"
+
+# Création du swarm
+docker swarm init
+
+docker network create --driver bridge soc_network
