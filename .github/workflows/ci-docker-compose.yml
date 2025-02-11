@@ -22,7 +22,7 @@ jobs:
     # Test des services Suricata
     - name: 🛡️ Lancer les services Suricata
       run: |
-        docke compose -f /suricata/docker-compose.yml up -d --build
+        docker compose -f /suricata/docker-compose.yml up -d --build
 
     - name: ✅ Vérifier l'état de Suricata
       run: |
