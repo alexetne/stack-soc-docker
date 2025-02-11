@@ -3,7 +3,7 @@ name: Docker Compose CI
 on:
   push:
     branches:
-      - test
+      - main
   pull_request:
     branches:
       - main
