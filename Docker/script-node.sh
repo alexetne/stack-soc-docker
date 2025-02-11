@@ -33,4 +33,4 @@ echo "fin de l'installation du repo docker"
 echo "installation de docker"
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 echo "100% effectué"
-echo "fin de l'installation de docker"
+echo "fin de l'installation de docker" 
