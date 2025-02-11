@@ -25,7 +25,29 @@ Une fois que les noeuds ont été lié au manager, vous pouvez passer aux étape
 
 ![services menu](./img/service-menu.png)
 
-### Cliquer sur ̀`add-service` :
+### Cliquer sur `add-service` :
 
 ![add-service](./img/service-list.png)
 
+### Ajouter les services comme suivant :
+
+#### Infos générales : 
+![add-service](./img/create-serv1.png)
+
+#### Network : 
+![add-service](./img/add-net.png)
+
+#### Volumes :
+![add-services](./img/add-volume.png)
+
+Ces commandes permettent de reproduire les commandes CLI suivantes :
+
+![add-service-explain](./img/infos-cli.png)
+
+### vérifier que le déploiement est ok :
+![status-service](./img/show-run.png)
+
+## Création de l'env Docker swarm : 
+
+### Se rendre dans le menu des env `Environment-related` :
+![menu-env](./img/env-menu.png)
