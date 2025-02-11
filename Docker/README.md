@@ -15,4 +15,17 @@ Se rendre sur son serveur portainer présent sur docker manager
 https://IP-docker-manager:9443
 ```
 
-Une fois que les noeuds ont été ahj
+Une fois que les noeuds ont été lié au manager, vous pouvez passer aux étapes suivantes :
+
+### Se rendre sur l'environnement local :
+
+![local env](./img/local-env.png)
+
+### Se rendre dans services :
+
+![services menu](./img/service-menu.png)
+
+### Cliquer sur ̀`add-service` :
+
+![add-service](./img/service-list.png)
+
