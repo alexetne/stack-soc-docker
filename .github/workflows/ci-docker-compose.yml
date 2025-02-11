@@ -16,20 +16,31 @@ jobs:
     - name: 📥 Cloner le dépôt
       uses: actions/checkout@v3
 
-    - name: ⚙️ Installer Docker et Docker Compose
+    - name: ⚙️ Configurer Docker
       uses: docker/setup-buildx-action@v2
 
-    - name: 🔄 Construire les services Docker Compose
-      run: docker-compose -f docker-compose.yml up -d --build
-
-    - name: ✅ Vérifier que les services sont en cours d'exécution
-      run: docker-compose ps
-
-    - name: 🧪 Tester les services
+    # Test des services Suricata
+    - name: 🛡️ Lancer les services Suricata
       run: |
-        # Exemple de tests de santé simples
-        docker-compose exec -T <nom_du_service> curl -f http://localhost:<port>
-        # Tu peux ajouter d'autres tests selon tes besoins
+        docker-compose -f suricata/docker-compose.yml up -d --build
 
-    - name: 🗑️ Nettoyer les services Docker
-      run: docker-compose down
+    - name: ✅ Vérifier l'état de Suricata
+      run: |
+        docker-compose -f suricata/docker-compose.yml ps
+        docker exec suricata suricata -V || exit 1
+
+    # Test des services Wazuh
+    - name: 📊 Lancer les services Wazuh
+      run: |
+        docker-compose -f wazuh/docker-compose.yml up -d --build
+
+    - name: ✅ Vérifier l'état de Wazuh
+      run: |
+        docker-compose -f wazuh/docker-compose.yml ps
+        curl -f http://localhost:5601 || exit 1  # Vérifie le dashboard
+        curl -f http://localhost:55000 || exit 1  # Vérifie l'API Wazuh
+
+    - name: 🗑️ Nettoyer les services
+      run: |
+        docker-compose -f suricata/docker-compose.yml down
+        docker-compose -f wazuh/docker-compose.yml down
