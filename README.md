@@ -20,4 +20,6 @@ On retrouvera les outils suivants :
 
 ### Etape 1 : Mise en place de docker et portainer
 
-dsjf
+# CD/CI
+
+[![Docker Compose CI](https://github.com/alexetne/stack-soc-docker/actions/workflows/ci-docker-compose.yml/badge.svg)](https://github.com/alexetne/stack-soc-docker/actions/workflows/ci-docker-compose.yml)
