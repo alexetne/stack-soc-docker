@@ -22,11 +22,11 @@ jobs:
     # Test des services Suricata
     - name: 🛡️ Lancer les services Suricata
       run: |
-        docker compose -f suricata/docker-compose.yml up -d --build
+        docker compose -f Suricata/docker-compose.yml up -d --build
 
     - name: ✅ Vérifier l'état de Suricata
       run: |
-        docker compose -f suricata/docker-compose.yml ps
+        docker compose -f Suricata/docker-compose.yml ps
         docker exec suricata suricata -V || exit 1
 
     # Test des services Wazuh
