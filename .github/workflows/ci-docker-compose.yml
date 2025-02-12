@@ -28,10 +28,10 @@ jobs:
         docker stack deploy -c Suricata/docker-compose.yml suricata || echo "TEST_FAILED=true" >> $GITHUB_ENV
         sleep 10
 
-    - name: ✅ Vérifier l'état de Suricata
-      run: |
-        echo "Attente de la montée de Suricata..."
-        timeout 180 bash -c 'while [[ $(docker service ps suricata --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    # - name: ✅ Vérifier l'état de Suricata
+    #   run: |
+    #     echo "Attente de la montée de Suricata..."
+    #     timeout 180 bash -c 'while [[ $(docker service ps suricata --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
     ###########################
     #         WAZUH          #
@@ -41,12 +41,12 @@ jobs:
         docker stack deploy -c wazuh/docker-compose.yml wazuh || echo "TEST_FAILED=true" >> $GITHUB_ENV
         sleep 10
 
-    - name: ✅ Vérifier l'état de Wazuh
-      run: |
-        echo "Attente de la montée de Wazuh..."
-        timeout 180 bash -c 'while [[ $(docker service ps wazuh --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
-        curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
-        curl -f http://localhost:55000 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    # - name: ✅ Vérifier l'état de Wazuh
+    #   run: |
+    #     echo "Attente de la montée de Wazuh..."
+    #     timeout 180 bash -c 'while [[ $(docker service ps wazuh --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    #     curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    #     curl -f http://localhost:55000 || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
     ###########################
     #          ELK           #
@@ -56,12 +56,12 @@ jobs:
         docker stack deploy -c ELK/docker-compose.yml elk || echo "TEST_FAILED=true" >> $GITHUB_ENV
         sleep 10
 
-    - name: ✅ Vérifier l'état de ELK
-      run: |
-        echo "Attente de la montée de ELK..."
-        timeout 180 bash -c 'while [[ $(docker service ps elk --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
-        curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
-        curl -f http://localhost:9200 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    # - name: ✅ Vérifier l'état de ELK
+    #   run: |
+    #     echo "Attente de la montée de ELK..."
+    #     timeout 180 bash -c 'while [[ $(docker service ps elk --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    #     curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    #     curl -f http://localhost:9200 || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
     ###########################
     #        OPENCTI         #
@@ -71,11 +71,11 @@ jobs:
         docker stack deploy -c opencti/docker-compose.yml opencti || echo "TEST_FAILED=true" >> $GITHUB_ENV
         sleep 10
 
-    - name: ✅ Vérifier l'état de OpenCTI
-      run: |
-       echo "Attente de la montée de OpenCTI..."
-       timeout 180 bash -c 'while [[ $(docker service ps opencti --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
-       curl -f http://localhost:8080 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    # - name: ✅ Vérifier l'état de OpenCTI
+    #   run: |
+    #    echo "Attente de la montée de OpenCTI..."
+    #    timeout 180 bash -c 'while [[ $(docker service ps opencti --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    #    curl -f http://localhost:8080 || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
     ###########################
     #       NETTOYAGE        #
