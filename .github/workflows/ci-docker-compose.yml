@@ -56,29 +56,13 @@ jobs:
           name: workspace
           path: .
 
-      - name: 🚀 Déploiement de Suricata
+      - name: 🚀 Déploiement des services
         run: |
-          echo "🔄 Déploiement de Suricata..."
-          docker stack deploy -c suricata/docker-compose.yml suricata 2>&1 | tee logs_suricata.txt || echo "SURICATA_FAILED=true" >> $GITHUB_ENV
-          sleep 10
-
-      - name: 🚀 Déploiement de Wazuh
-        run: |
-          echo "🔄 Déploiement de Wazuh..."
-          docker stack deploy -c wazuh/docker-compose.yml wazuh 2>&1 | tee logs_wazuh.txt || echo "WAZUH_FAILED=true" >> $GITHUB_ENV
-          sleep 10
-
-      - name: 🚀 Déploiement de ELK
-        run: |
-          echo "🔄 Déploiement de ELK..."
-          docker stack deploy -c elk/docker-compose.yml elk 2>&1 | tee logs_elk.txt || echo "ELK_FAILED=true" >> $GITHUB_ENV
-          sleep 10
-
-      - name: 🚀 Déploiement de OpenCTI
-        run: |
-          echo "🔄 Déploiement de OpenCTI..."
-          docker stack deploy -c opencti/docker-compose.yml opencti 2>&1 | tee logs_opencti.txt || echo "OPENCTI_FAILED=true" >> $GITHUB_ENV
-          sleep 10
+          for service in suricata wazuh elk opencti; do
+            echo "🔄 Déploiement de $service..."
+            docker stack deploy -c $service/docker-compose.yml $service 2>&1 | tee logs_$service.txt || echo "${service^^}_FAILED=true" >> $GITHUB_ENV
+            sleep 10
+          done
 
       - name: 📦 Stocker les logs individuels
         uses: actions/upload-artifact@v4
@@ -107,76 +91,60 @@ jobs:
           done
 
   ###########################
-  #  DÉTECTION DES ERREURS  #
+  #  GESTION DES LOGS & ERREURS  #
   ###########################
-  check_errors:
+  handle_logs:
     needs: deploy
     runs-on: ubuntu-latest
-    outputs:
-      test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
-      - name: 📥 Récupérer les logs
+      - name: 📥 Récupérer les logs des services
         uses: actions/download-artifact@v4
         with:
           name: service_logs
           path: .
 
-      - name: 🚨 Détecter les erreurs
+      - name: 🚨 Détecter les erreurs et préparer les logs
         id: detect_failure
         run: |
           TEST_FAILED=false
-          
+          mkdir -p error_logs
+
           for service in suricata wazuh elk opencti; do
             log_file="logs_$service.txt"
+            error_file="error_logs/error_$service.txt"
+
+            if [[ -f "$log_file" ]]; then
+              echo "📌 Logs pour $service" > "$error_file"
+              cat "$log_file" >> "$error_file"
+            else
+              echo "⚠️ Aucun log trouvé pour $service, peut-être un échec de création ?" > "$error_file"
+            fi
+
+            # Détection d'erreur dans les logs
             if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot\|swarm manager" "$log_file") ]]; then
               echo "⚠️ Erreur détectée dans $log_file"
               TEST_FAILED=true
-              break
             fi
           done
 
+          echo "test_failed=$TEST_FAILED" >> $GITHUB_ENV
           echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
 
-  ###########################
-  #   GESTION DES BRANCHES  #
-  ###########################
-  push_logs:
-    needs: check_errors
-    if: needs.check_errors.outputs.test_failed == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: 🔄 Restaurer le workspace
-        uses: actions/download-artifact@v4
+      - name: 💾 Sauvegarder les logs d'erreur
+        if: env.test_failed == 'true'
+        uses: actions/upload-artifact@v4
         with:
-          name: workspace
-          path: .
-
-      - name: 🚀 Vérifier `.git/`
-        run: ls -la .git || echo "⚠️ Le dossier .git est manquant"
+          name: error_logs
+          path: error_logs/
 
       - name: 🏷️ Déterminer la branche cible
+        if: env.test_failed == 'true'
         run: |
-          if [[ "${{ needs.check_errors.outputs.test_failed }}" == "true" ]]; then
-            TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
-            echo "BRANCH=erreur-$TIMESTAMP" >> $GITHUB_ENV
-          else
-            echo "BRANCH=develop" >> $GITHUB_ENV
-          fi
+          TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
+          echo "BRANCH=erreur-$TIMESTAMP" >> $GITHUB_ENV
 
-      - name: 📝 Générer les fichiers logs par service
-        run: |
-          for service in suricata wazuh elk opencti; do
-            log_file="logs_$service.txt"
-            if [[ -f "$log_file" ]]; then
-              echo "📌 Logs pour $service" > "error_$service.txt"
-              cat "$log_file" >> "error_$service.txt"
-            else
-              echo "⚠️ Aucun log trouvé pour $service, peut-être un échec de création ?" > "error_$service.txt"
-            fi
-          done
-          git add error_*.txt
-
-      - name: 🚀 Pousser la branche cible avec les logs
+      - name: 🚀 Pousser les logs sur la branche cible
+        if: env.test_failed == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -185,6 +153,9 @@ jobs:
 
           git fetch origin
           git checkout -b ${{ env.BRANCH }} || git checkout ${{ env.BRANCH }}
+
+          cp -r error_logs/* .
+          git add error_*.txt
 
           git commit -m "Mise à jour automatique via GitHub Actions - Logs détaillés par service" || echo "Aucune modification à commit"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.BRANCH }} --force
