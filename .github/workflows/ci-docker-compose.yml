@@ -40,47 +40,10 @@ jobs:
           retention-days: 1
 
   ###########################
-  #      AJOUT MANAGER      #
-  ###########################
-  manager:
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - name: 🔄 Restaurer le workspace
-        uses: actions/download-artifact@v4
-        with:
-          name: workspace
-          path: .
-
-      - name: 🔍 Vérifier si Swarm est déjà actif
-        id: check_swarm
-        run: |
-          if docker info | grep -q "Swarm: active"; then
-            echo "✅ Swarm déjà actif"
-            echo "SWARM_ACTIVE=true" >> $GITHUB_ENV
-          else
-            echo "⚠️ Swarm non actif, initialisation en cours..."
-            docker swarm init || true
-            echo "SWARM_ACTIVE=false" >> $GITHUB_ENV
-          fi
-
-      - name: 🔑 Récupérer le token du manager (si Swarm actif)
-        if: env.SWARM_ACTIVE == 'true'
-        run: |
-          TOKEN=$(docker swarm join-token manager -q)
-          echo "TOKEN=$TOKEN" >> $GITHUB_ENV
-
-      - name: 🛠️ Ajouter un manager si nécessaire
-        if: env.TOKEN != ''
-        run: |
-          echo "Ajout du manager..."
-          docker swarm join --token $TOKEN 10.1.0.104:2377 || echo "⚠️ Impossible d'ajouter un manager"
-
-  ###########################
-  #      DÉPLOIEMENT       #
+  #      DÉPLOIEMENT        #
   ###########################
   deploy:
-    needs: manager
+    needs: setup
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -95,9 +58,9 @@ jobs:
       - name: 🚀 Déployer ${{ matrix.service }}
         run: |
           echo "🔄 Déploiement de ${{ matrix.service }}..."
-          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt || echo "${{ matrix.service }}_FAILED=true" >> $GITHUB_ENV
+          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
-
+  
       - name: 📦 Stocker les logs de ${{ matrix.service }}
         uses: actions/upload-artifact@v4
         with:
@@ -105,117 +68,87 @@ jobs:
           path: logs_${{ matrix.service }}.txt
 
   ###########################
-  #       NETTOYAGE        #
+  #  DÉTECTION DES ERREURS  #
   ###########################
-  cleanup:
+  check_errors:
     needs: deploy
     runs-on: ubuntu-latest
-    if: always()
+    strategy:
+      matrix:
+        service: [suricata, wazuh, elk, opencti]
+    outputs:
+      test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
-      - name: 🔄 Restaurer le workspace
+      - name: 📥 Récupérer les logs de ${{ matrix.service }}
+        uses: actions/download-artifact@v4
+        with:
+          name: logs_${{ matrix.service }}
+          path: .
+
+      - name: 🔍 Vérifier les erreurs dans logs_${{ matrix.service }}.txt
+        id: detect_failure
+        run: |
+          TEST_FAILED=false
+          log_file="logs_${{ matrix.service }}.txt"
+          
+          if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot\|swarm manager" "$log_file") ]]; then
+            echo "⚠️ Erreur détectée dans $log_file"
+            TEST_FAILED=true
+          fi
+
+          echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
+
+  ###########################
+  #   GESTION DES LOGS      #
+  ###########################
+  push_logs:
+    needs: check_errors
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Restaurer le workspace
         uses: actions/download-artifact@v4
         with:
           name: workspace
           path: .
 
-      - name: 🗑️ Vérifier et Initialiser Swarm si nécessaire
+      - name: 🚀 Vérifier `.git/`
         run: |
-          if ! docker info | grep -q "Swarm: active"; then
-            echo "⚠️ Swarm n'est pas actif, initialisation en cours..."
-            docker swarm init || true
+          if [ ! -d ".git" ]; then
+            echo "⚠️ Le dossier .git est manquant, reclonage en cours..."
+            rm -rf ./*
+            git clone https://github.com/${{ github.repository }}.git .
           fi
 
-      - name: 🗑️ Nettoyer les services
-        run: |
-          docker stack ls
-          for service in suricata wazuh elk opencti; do
-            if docker stack ls | grep -q "$service"; then
-              echo "🗑️ Suppression de la stack $service..."
-              docker stack rm $service || true
-            else
-              echo "⚠️ Stack $service introuvable, rien à supprimer."
-            fi
-          done
-
-  ###########################
-  #  DÉTECTION DES ERREURS  #
-  ###########################
-  check_errors:
-    needs: [deploy]
-    runs-on: ubuntu-latest
-    outputs:
-      test_failed: ${{ steps.detect_failure.outputs.test_failed }}
-    steps:
-      - name: 📥 Récupérer tous les logs du déploiement
+      - name: 📥 Télécharger tous les logs
         uses: actions/download-artifact@v4
         with:
-          name: deploy_logs
-          path: .
+          path: logs/
 
-      - name: 🔍 Vérifier le contenu des logs récupérés
+      - name: 📝 Générer un fichier de logs consolidé
         run: |
-          echo "📂 Vérification des logs récupérés :"
-          ls -l logs_*.txt || echo "⚠️ Aucun fichier log trouvé !"
-
-      - name: 🚨 Vérifier les erreurs dans les logs de chaque service
-        id: detect_failure
-        run: |
-          TEST_FAILED=false
+          echo "📅 Date : $(date)" > error-log.txt
+          
           for service in suricata wazuh elk opencti; do
-            log_file="logs_$service.txt"
-            if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot" "$log_file") ]]; then
-              echo "⚠️ Erreur détectée dans $log_file"
-              TEST_FAILED=true
-            fi
-          done
-          echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
-
-
-  ###########################
-  #   GESTION DES BRANCHES  #
-  ###########################
-  push_logs:
-    needs: check_errors
-    if: needs.check_errors.outputs.test_failed == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Restaurer le dépôt
-        uses: actions/checkout@v4
-
-      - name: 📥 Récupérer les logs des services
-        uses: actions/download-artifact@v4
-        with:
-          name: deploy_logs
-          path: .
-
-      - name: 🏷️ Déterminer la branche cible
-        run: |
-          TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
-          echo "BRANCH=erreur-$TIMESTAMP" >> $GITHUB_ENV
-
-      - name: 📝 Générer les fichiers de logs pour chaque service
-        run: |
-          mkdir logs_errors
-          for service in suricata wazuh elk opencti; do
-            log_file="logs_$service.txt"
+            log_file="logs/logs_$service/logs_$service.txt"
+            
             if [[ -f "$log_file" ]]; then
-              echo "❌ ERREUR DE DÉPLOIEMENT POUR $service :" > logs_errors/error_$service.txt
-              cat "$log_file" >> logs_errors/error_$service.txt
+              echo "❌ ERREUR DE DÉPLOIEMENT POUR $service :" >> error-log.txt
+              cat "$log_file" >> error-log.txt
             else
-              echo "⚠️ Aucun log trouvé pour $service, peut-être un échec de création ?" > logs_errors/error_$service.txt
+              echo "⚠️ Aucun log trouvé pour $service, peut-être un échec de création ?" >> error-log.txt
             fi
           done
 
-      - name: 🚀 Pousser les logs sur la branche d'erreur
+          git add error-log.txt
+
+      - name: 🚀 Déterminer la branche cible et Pousser les logs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "github-actions@github.com"
+          TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
+          BRANCH="erreur-$TIMESTAMP"
 
-          git fetch origin
-          git checkout -b ${{ env.BRANCH }} || git checkout ${{ env.BRANCH }}
+          git checkout -b $BRANCH || git checkout $BRANCH
 
-          git add logs_errors/
-          git commit -m "Mise à jour des logs d'erreur via GitHub Actions" || echo "Aucune modification à commit"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.BRANCH }} --force
+          git commit -m "Mise à jour automatique via GitHub Actions" || echo "Aucune modification à commit"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $BRANCH --force
