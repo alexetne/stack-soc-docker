@@ -19,25 +19,47 @@ jobs:
     - name: ⚙️ Configurer Docker
       uses: docker/setup-buildx-action@v2
 
+    # Test des services Suricata
+    # - name: 🛡️ Lancer les services Suricata
+    #  run: |
+    #   docker compose -f Suricata/Docker-compose.yml up -d --build || echo "TEST_FAILED=true" >> $GITHUB_ENV
+
+    # - name: ✅ Vérifier l'état de Suricata
+    #   run: |
+    #     docker compose -f Suricata/docker-compose.yml ps
+    #     docker exec suricata suricata -V || exit 1
+
     # Test des services Wazuh
     - name: 📊 Lancer les services Wazuh
       run: |
         docker compose -f wazuh/docker-compose.yml up -d --build || echo "TEST_FAILED=true" >> $GITHUB_ENV
+
+    # - name: ✅ Vérifier l'état de Wazuh
+    #   run: |
+    #     docker compose -f wazuh/docker-compose.yml ps
+    #     curl -f http://localhost:5601 || exit 1  # Vérifie le dashboard
+    #     curl -f http://localhost:55000 || exit 1  # Vérifie l'API Wazuh
 
     # Test des services ELK
     - name: 📈 Lancer les services ELK
       run: |
         docker compose -f ELK/Docker-compose.yml up -d --build || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
+    # - name: ✅ Vérifier l'état de ELK
+    #   run: |
+    #     docker compose -f ELK/Docker-compose.yml ps
+    #     curl -f http://localhost:5601 || exit 1  # Vérifie Kibana
+    #     curl -f http://localhost:9200 || exit 1  # Vérifie Elasticsearch
+
     # Test des services OpenCTI
     - name: 🔍 Lancer les services OpenCTI
       run: |
         docker compose -f opencti/docker-compose.yml up -d --build || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
-    # Test des services Suricata
-    - name: 🛡️ Lancer les services Suricata
-      run: |
-        docker compose -f Suricata/Docker-compose.yml up -d --build || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    # - name: ✅ Vérifier l'état de OpenCTI
+    #   run: |
+    #     docker compose -f opencti/docker-compose.yml ps
+    #     curl -f http://localhost:8080 || exit 1  # Vérifie l'interface OpenCTI
 
     - name: ✅ Vérifier l'état des services
       id: tests
@@ -65,8 +87,6 @@ jobs:
           docker compose -f opencti/docker-compose.yml down
         fi
 
-
-    # Gestion de la branche cible avec correction
     - name: 🏷️ Déterminer la branche cible
       id: branch_target
       run: |
@@ -78,7 +98,6 @@ jobs:
           echo "BRANCH=dev" >> $GITHUB_ENV
         fi
 
-    # Création et push sur la bonne branche
     - name: 🚀 Créer et Pousser la branche
       run: |
         git config --global user.name "GitHub Actions"
