@@ -189,17 +189,14 @@ jobs:
     if: needs.check_errors.outputs.test_failed == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: 📥 Cloner le dépôt (obligatoire pour Git)
+        uses: actions/checkout@v4
+
       - name: 🔄 Restaurer le workspace
         uses: actions/download-artifact@v4
         with:
           name: workspace
           path: .
-      
-      - name: 📥 Restaurer `.git/`
-        uses: actions/download-artifact@v4
-        with:
-          name: git-repo
-          path: .git
 
       - name: 🚀 Vérifier `.git/`
         run: ls -la .git || echo "⚠️ Le dossier .git est manquant"
