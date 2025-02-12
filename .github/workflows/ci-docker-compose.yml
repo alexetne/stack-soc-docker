@@ -101,9 +101,9 @@ jobs:
             fi
           done
 
-      ###########################
-      #   GESTION DES BRANCHES  #
-      ###########################
+  ###########################
+  #   GESTION DES BRANCHES  #
+  ###########################
       - name: 🏷️ Déterminer la branche cible
         id: branch_target
         run: |
@@ -115,6 +115,9 @@ jobs:
             echo "BRANCH=develop" >> $GITHUB_ENV
           fi
 
+  ###########################
+  #   PUSH DES MODIFICATIONS  #
+  ###########################
       - name: 🚀 Créer et Pousser la branche avec logs détaillés en cas d'erreur
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -125,32 +128,42 @@ jobs:
           git checkout -b ${{ env.BRANCH }}
 
           if [[ "${{ env.TEST_FAILED }}" == "true" ]]; then
-            echo "===== LOG DU PIPELINE =====" > error-log.txt
-            echo "Date : $(date)" >> error-log.txt
-            echo "===========================" >> error-log.txt
-
-            echo "➡️ Docker Info :" >> error-log.txt
+            echo "═══════════════════════════════════════" > error-log.txt
+            echo "              🛠️ LOG DU PIPELINE 🛠️              " >> error-log.txt
+            echo "═══════════════════════════════════════" >> error-log.txt
+            echo "📅 Date : $(date)" >> error-log.txt
+            echo "═══════════════════════════════════════" >> error-log.txt
+            
+            echo "ℹ️  Docker Info :" >> error-log.txt
             docker info >> error-log.txt 2>&1
 
-            echo "➡️ Docker Version :" >> error-log.txt
+            echo "───────────────────────────────────────" >> error-log.txt
+            echo "ℹ️  Docker Version :" >> error-log.txt
             docker version >> error-log.txt 2>&1
 
-            echo "➡️ Liste des Stacks Docker :" >> error-log.txt
+            echo "───────────────────────────────────────" >> error-log.txt
+            echo "ℹ️  Liste des Stacks Docker :" >> error-log.txt
             docker stack ls >> error-log.txt 2>&1
 
-            echo "➡️ Liste des Services Swarm :" >> error-log.txt
+            echo "───────────────────────────────────────" >> error-log.txt
+            echo "ℹ️  Liste des Services Swarm :" >> error-log.txt
             docker service ls >> error-log.txt 2>&1
 
-            echo "➡️ Liste des Conteneurs en cours d'exécution :" >> error-log.txt
+            echo "───────────────────────────────────────" >> error-log.txt
+            echo "ℹ️  Liste des Conteneurs en cours d'exécution :" >> error-log.txt
             docker ps -a >> error-log.txt 2>&1
 
-            echo "➡️ Logs détaillés des services échoués :" >> error-log.txt
+            echo "═══════════════════════════════════════" >> error-log.txt
+            echo "❌ Logs détaillés des services échoués :" >> error-log.txt
+            echo "═══════════════════════════════════════" >> error-log.txt
             
             # Ajout des logs d'échec de stack deploy
             for service in suricata wazuh elk opencti; do
               log_file="logs_${service}.txt"
               if [[ -f "$log_file" ]]; then
+                echo "───────────────────────────────────────" >> error-log.txt
                 echo "❌ ERREUR DE DÉPLOIEMENT POUR $service :" >> error-log.txt
+                echo "───────────────────────────────────────" >> error-log.txt
                 cat "$log_file" >> error-log.txt
               fi
             done
@@ -158,12 +171,17 @@ jobs:
             # Vérification de l'état des services
             for service in suricata wazuh elk opencti; do
               if docker stack ps $service 2>/dev/null | grep -q "Failed\|Rejected\|Shutdown\|Complete"; then
+                echo "───────────────────────────────────────" >> error-log.txt
                 echo "🔍 Logs pour service: $service" >> error-log.txt
                 docker service logs $service >> error-log.txt 2>&1
               else
                 echo "⚠️ Service $service non actif ou introuvable, impossible de récupérer les logs." >> error-log.txt
               fi
             done
+
+            echo "═══════════════════════════════════════" >> error-log.txt
+            echo "📌 FIN DU LOG" >> error-log.txt
+            echo "═══════════════════════════════════════" >> error-log.txt
 
             git add error-log.txt
           fi
@@ -172,9 +190,9 @@ jobs:
 
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.BRANCH }} --force
 
-        ###########################
-        #       NETTOYAGE        #
-        ###########################
+  ###########################
+  #       NETTOYAGE        #
+  ###########################
       - name: 🗑️ Nettoyer les services
         run: |
           docker stack rm suricata || true
