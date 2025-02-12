@@ -52,10 +52,19 @@ jobs:
 
     - name: 🗑️ Nettoyer les services
       run: |
-        docker compose -f Suricata/docker-compose.yml down
-        docker compose -f wazuh/docker-compose.yml down
-        docker compose -f ELK/Docker-compose.yml down
-        docker compose -f opencti/docker-compose.yml down
+        if [ -f Suricata/docker-compose.yml ]; then
+          docker compose -f Suricata/docker-compose.yml down
+        fi
+        if [ -f wazuh/docker-compose.yml ]; then
+          docker compose -f wazuh/docker-compose.yml down
+        fi
+        if [ -f ELK/Docker-compose.yml ]; then
+          docker compose -f ELK/Docker-compose.yml down
+        fi
+        if [ -f opencti/docker-compose.yml ]; then
+          docker compose -f opencti/docker-compose.yml down
+        fi
+
 
     # Gestion de la branche cible avec correction
     - name: 🏷️ Déterminer la branche cible
