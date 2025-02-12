@@ -11,3 +11,8 @@ volumes:
    driver: local
  logstashdata01:
    driver: local
+
+networks:
+ default:
+   name: elastic
+   external: false
