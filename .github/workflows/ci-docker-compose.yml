@@ -80,6 +80,19 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
+      - name: 🔄 Restaurer le workspace (optionnel si nécessaire)
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: .
+
+      - name: 🗑️ Vérifier et Initialiser Swarm si nécessaire
+        run: |
+          if ! docker info | grep -q "Swarm: active"; then
+            echo "⚠️ Swarm n'est pas actif, initialisation en cours..."
+            docker swarm init || true
+          fi
+
       - name: 🗑️ Nettoyer les services
         run: |
           for service in suricata wazuh elk opencti; do
