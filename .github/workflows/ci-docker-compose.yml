@@ -84,6 +84,23 @@ jobs:
       #    timeout 180 bash -c 'while [[ $(docker service ps opencti --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
       #    curl -f http://localhost:8080 || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
+  ###########################
+  #   DÉTECTION DES ERREURS  #
+  ###########################
+      - name: 🚨 Détecter si un service a échoué
+        run: |
+          echo "TEST_FAILED=false" >> $GITHUB_ENV
+
+          for service in suricata wazuh elk opencti; do
+            log_file="logs_${service}.txt"
+            if [[ -f "$log_file" ]]; then
+              if grep -i "error\|failed\|cannot" "$log_file"; then
+                echo "TEST_FAILED=true" >> $GITHUB_ENV
+                break
+              fi
+            fi
+          done
+
       ###########################
       #   GESTION DES BRANCHES  #
       ###########################
