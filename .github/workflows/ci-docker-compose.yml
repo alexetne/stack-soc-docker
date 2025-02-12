@@ -36,6 +36,12 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
+      - name: 🔎 Vérifier l'existence des fichiers
+        run: |
+          for service in suricata wazuh elk opencti; do
+            ls -l $service/docker-compose.yml || exit 1
+          done
+      
       - name: 🚀 Déployer les services
         run: |
           for service in suricata wazuh elk opencti; do
