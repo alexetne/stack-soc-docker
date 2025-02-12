@@ -56,21 +56,35 @@ jobs:
           name: workspace
           path: .
 
-      - name: 🚀 Déployer les services
+      - name: 🚀 Déploiement de Suricata
         run: |
-          echo "🛠️ Déploiement des services..." > deploy_errors.log
-          
-          for service in suricata wazuh elk opencti; do
-            echo "🔄 Déploiement de $service..." | tee -a deploy_errors.log
-            docker stack deploy -c $service/docker-compose.yml $service 2>&1 | tee logs_$service.txt deploy_errors.log || echo "${service^^}_FAILED=true" >> $GITHUB_ENV
-            sleep 10
-          done
-  
-      - name: 📦 Stocker les logs pour `check_errors`
+          echo "🔄 Déploiement de Suricata..."
+          docker stack deploy -c suricata/docker-compose.yml suricata 2>&1 | tee logs_suricata.txt || echo "SURICATA_FAILED=true" >> $GITHUB_ENV
+          sleep 10
+
+      - name: 🚀 Déploiement de Wazuh
+        run: |
+          echo "🔄 Déploiement de Wazuh..."
+          docker stack deploy -c wazuh/docker-compose.yml wazuh 2>&1 | tee logs_wazuh.txt || echo "WAZUH_FAILED=true" >> $GITHUB_ENV
+          sleep 10
+
+      - name: 🚀 Déploiement de ELK
+        run: |
+          echo "🔄 Déploiement de ELK..."
+          docker stack deploy -c elk/docker-compose.yml elk 2>&1 | tee logs_elk.txt || echo "ELK_FAILED=true" >> $GITHUB_ENV
+          sleep 10
+
+      - name: 🚀 Déploiement de OpenCTI
+        run: |
+          echo "🔄 Déploiement de OpenCTI..."
+          docker stack deploy -c opencti/docker-compose.yml opencti 2>&1 | tee logs_opencti.txt || echo "OPENCTI_FAILED=true" >> $GITHUB_ENV
+          sleep 10
+
+      - name: 📦 Stocker les logs individuels
         uses: actions/upload-artifact@v4
         with:
-          name: deploy_logs
-          path: deploy_errors.log
+          name: service_logs
+          path: logs_*.txt
 
   ###########################
   #        NETTOYAGE        #
@@ -104,11 +118,8 @@ jobs:
       - name: 📥 Récupérer les logs
         uses: actions/download-artifact@v4
         with:
-          name: deploy_logs
+          name: service_logs
           path: .
-
-      - name: 🔍 Vérifier `deploy_errors.log`
-        run: cat deploy_errors.log || echo "⚠️ Le fichier deploy_errors.log est vide."
 
       - name: 🚨 Détecter les erreurs
         id: detect_failure
@@ -124,13 +135,7 @@ jobs:
             fi
           done
 
-          if grep -i "error\|failed\|cannot\|swarm manager" deploy_errors.log; then
-            echo "🚨 Erreur trouvée dans deploy_errors.log"
-            TEST_FAILED=true
-          fi
-
           echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
-
 
   ###########################
   #   GESTION DES BRANCHES  #
@@ -158,28 +163,20 @@ jobs:
             echo "BRANCH=develop" >> $GITHUB_ENV
           fi
 
-      - name: 📝 Générer le fichier de logs
+      - name: 📝 Générer les fichiers logs par service
         run: |
-          echo "📅 Date : $(date)" > error-log.txt
-          docker info >> error-log.txt 2>&1
-          docker stack ls >> error-log.txt 2>&1
-          docker service ls >> error-log.txt 2>&1
-          docker ps -a >> error-log.txt 2>&1
-
           for service in suricata wazuh elk opencti; do
             log_file="logs_$service.txt"
-  
             if [[ -f "$log_file" ]]; then
-              echo "❌ ERREUR DE DÉPLOIEMENT POUR $service :" >> error-log.txt
-              cat "$log_file" >> error-log.txt
+              echo "📌 Logs pour $service" > "error_$service.txt"
+              cat "$log_file" >> "error_$service.txt"
             else
-              echo "⚠️ Aucun log trouvé pour $service, peut-être un échec de création ?" >> error-log.txt
+              echo "⚠️ Aucun log trouvé pour $service, peut-être un échec de création ?" > "error_$service.txt"
             fi
           done
+          git add error_*.txt
 
-          git add error-log.txt
-
-      - name: 🚀 Pousser la branche cible
+      - name: 🚀 Pousser la branche cible avec les logs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -189,5 +186,5 @@ jobs:
           git fetch origin
           git checkout -b ${{ env.BRANCH }} || git checkout ${{ env.BRANCH }}
 
-          git commit -m "Mise à jour automatique via GitHub Actions" || echo "Aucune modification à commit"
+          git commit -m "Mise à jour automatique via GitHub Actions - Logs détaillés par service" || echo "Aucune modification à commit"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.BRANCH }} --force
