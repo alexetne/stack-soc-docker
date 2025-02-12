@@ -108,6 +108,7 @@ jobs:
           echo "BRANCH=develop" >> $GITHUB_ENV
         fi
 
+
     - name: 🚀 Créer et Pousser la branche uniquement en cas d'erreur
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -117,7 +118,6 @@ jobs:
   
           git checkout -b ${{ env.BRANCH }}
   
-          # Si une erreur est détectée, générer un fichier de logs
           if [[ "${{ env.TEST_FAILED }}" == "true" ]]; then
             echo "===== LOG DU PIPELINE =====" > error-log.txt
             echo "Date : $(date)" >> error-log.txt
@@ -140,8 +140,12 @@ jobs:
   
             echo "➡️ Logs détaillés des services échoués :" >> error-log.txt
             for service in suricata wazuh elk opencti; do
-              echo "🔍 Logs pour service: $service" >> error-log.txt
-              docker service logs $service >> error-log.txt 2>&1 || echo "⚠️ Impossible d'obtenir les logs de $service" >> error-log.txt
+              if docker service ls | grep -q "$service"; then
+                echo "🔍 Logs pour service: $service" >> error-log.txt
+                docker service logs $service >> error-log.txt 2>&1
+              else
+                echo "⚠️ Service $service non trouvé, impossible de récupérer les logs." >> error-log.txt
+              fi
             done
   
             git add error-log.txt
