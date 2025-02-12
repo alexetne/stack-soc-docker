@@ -9,19 +9,19 @@ on:
       - main
 
 jobs:
-  test:
+  ###########################
+  #      CONFIGURATION      #
+  ###########################
+  setup:
     runs-on: ubuntu-latest
-
+    outputs:
+      test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
-      ###########################
-      #      CONFIGURATION      #
-      ###########################
       - name: 📥 Cloner le dépôt
         uses: actions/checkout@v3
 
       - name: ⚙️ Configurer Docker et Swarm
-        run: |
-          docker swarm init || true
+        run: docker swarm init || true
 
       - name: 🔎 Vérifier l'existence des fichiers
         run: |
@@ -29,9 +29,13 @@ jobs:
             ls -l $service/docker-compose.yml || exit 1
           done
 
-      ###########################
-      #      DÉPLOIEMENT        #
-      ###########################
+  ###########################
+  #      DÉPLOIEMENT        #
+  ###########################
+  deploy:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
       - name: 🚀 Déployer les services
         run: |
           for service in suricata wazuh elk opencti; do
@@ -39,22 +43,33 @@ jobs:
             sleep 10
           done
 
-      ###########################
-      #        NETTOYAGE        #
-      ###########################
+  ###########################
+  #        NETTOYAGE        #
+  ###########################
+  cleanup:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
       - name: 🗑️ Nettoyer les services
         run: |
           for service in suricata wazuh elk opencti; do
             docker stack rm $service || true
           done
 
-      ###########################
-      #  DÉTECTION DES ERREURS  #
-      ###########################
+  ###########################
+  #  DÉTECTION DES ERREURS  #
+  ###########################
+  check_errors:
+    needs: deploy
+    runs-on: ubuntu-latest
+    outputs:
+      test_failed: ${{ steps.detect_failure.outputs.test_failed }}
+    steps:
       - name: 🚨 Vérifier les erreurs
+        id: detect_failure
         run: |
           echo "TEST_FAILED=false" >> $GITHUB_ENV
-
           for service in suricata wazuh elk opencti; do
             log_file="logs_$service.txt"
             if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot" "$log_file") ]]; then
@@ -62,26 +77,26 @@ jobs:
               break
             fi
           done
+          echo "::set-output name=test_failed::${{ env.TEST_FAILED }}"
 
-      ###########################
-      #   GESTION DES BRANCHES  #
-      ###########################
+  ###########################
+  #   GESTION DES BRANCHES  #
+  ###########################
+  push_logs:
+    needs: check_errors
+    runs-on: ubuntu-latest
+    steps:
       - name: 🏷️ Déterminer la branche cible
-        id: branch_target
         run: |
-          echo "TEST_FAILED=${{ env.TEST_FAILED }}"  
-          if [[ "${{ env.TEST_FAILED }}" == "true" ]]; then
+          if [[ "${{ needs.check_errors.outputs.test_failed }}" == "true" ]]; then
             TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
             echo "BRANCH=erreur-$TIMESTAMP" >> $GITHUB_ENV
           else
             echo "BRANCH=develop" >> $GITHUB_ENV
           fi
 
-      ###########################
-      #   GÉNÉRATION DES LOGS   #
-      ###########################
       - name: 📝 Générer le fichier de logs
-        if: env.TEST_FAILED == 'true'
+        if: needs.check_errors.outputs.test_failed == 'true'
         run: |
           echo "═══════════════════════════════════════" > error-log.txt
           echo "              🛠️ LOG DU PIPELINE 🛠️              " >> error-log.txt
@@ -138,10 +153,7 @@ jobs:
 
           git add error-log.txt
 
-      ###########################
-      #   PUSH DES MODIFICATIONS  #
-      ###########################
-      - name: 🚀 Créer et Pousser la branche
+      - name: 🚀 Pousser la branche cible
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
