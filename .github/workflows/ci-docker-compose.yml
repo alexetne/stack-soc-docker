@@ -85,16 +85,6 @@ jobs:
     #    curl -f http://localhost:8080 || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
     ###########################
-    #       NETTOYAGE        #
-    ###########################
-    - name: 🗑️ Nettoyer les services
-      run: |
-        docker stack rm Suricata || true
-        docker stack rm wazuh || true
-        docker stack rm ELK || true
-        docker stack rm opencti || true
-
-    ###########################
     #   GESTION DES BRANCHES  #
     ###########################
     - name: 🏷️ Déterminer la branche cible
@@ -154,4 +144,13 @@ jobs:
           git commit -m "Mise à jour automatique via GitHub Actions" || echo "Aucune modification à commit"
   
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.BRANCH }} --force
-  
+    
+    ###########################
+    #       NETTOYAGE        #
+    ###########################
+    - name: 🗑️ Nettoyer les services
+      run: |
+        docker stack rm Suricata || true
+        docker stack rm wazuh || true
+        docker stack rm ELK || true
+        docker stack rm opencti || true
