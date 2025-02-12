@@ -32,7 +32,7 @@ jobs:
     ###########################
     - name: 🛡️ Lancer les services Suricata
       run: |
-        docker stack deploy -c Suricata/docker-compose.yml suricata || (echo "TEST_FAILED=true" >> $GITHUB_ENV && exit 1)
+        docker stack deploy -c Suricata/Docker-compose.yml suricata || (echo "TEST_FAILED=true" >> $GITHUB_ENV && exit 1)
         sleep 10
 
     # - name: ✅ Vérifier l'état de Suricata
@@ -60,7 +60,7 @@ jobs:
     ###########################
     - name: 📈 Lancer les services ELK
       run: |
-        docker stack deploy -c ELK/docker-compose.yml elk || (echo "TEST_FAILED=true" >> $GITHUB_ENV && exit 1)
+        docker stack deploy -c ELK/Docker-compose.yml elk || (echo "TEST_FAILED=true" >> $GITHUB_ENV && exit 1)
         sleep 10
 
     # - name: ✅ Vérifier l'état de ELK
