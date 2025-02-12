@@ -25,7 +25,7 @@ jobs:
 
       - name: 🔎 Vérifier l'existence des fichiers
         run: |
-          for service in Suricata wazuh ELK opencti; do
+          for service in suricata wazuh elk opencti; do
             ls -l $service/docker-compose.yml || exit 1
           done
 
