@@ -90,29 +90,36 @@ jobs:
   #  DÉTECTION DES ERREURS  #
   ###########################
   check_errors:
-    needs: deploy
     runs-on: ubuntu-latest
     outputs:
       test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
+      - name: 🔄 Restaurer le workspace avec logs
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: .
+
       - name: 🚨 Vérifier les erreurs
         id: detect_failure
         run: |
           echo "TEST_FAILED=false" >> $GITHUB_ENV
+
           for service in suricata wazuh elk opencti; do
             log_file="logs_$service.txt"
             if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot" "$log_file") ]]; then
               echo "TEST_FAILED=true" >> $GITHUB_ENV
+              echo "test_failed=true" >> $GITHUB_OUTPUT  # 🔥 Nouvelle méthode
               break
             fi
           done
-          echo "::set-output name=test_failed::${{ env.TEST_FAILED }}"
 
   ###########################
   #   GESTION DES BRANCHES  #
   ###########################
   push_logs:
     needs: check_errors
+    if: needs.check_errors.outputs.test_failed == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: 🔄 Restaurer le workspace
