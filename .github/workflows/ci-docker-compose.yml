@@ -89,9 +89,9 @@ jobs:
     ###########################
     - name: 🗑️ Nettoyer les services
       run: |
-        docker stack rm suricata || true
+        docker stack rm Suricata || true
         docker stack rm wazuh || true
-        docker stack rm elk || true
+        docker stack rm ELK || true
         docker stack rm opencti || true
 
     ###########################
@@ -139,12 +139,12 @@ jobs:
             docker ps -a >> error-log.txt 2>&1
   
             echo "➡️ Logs détaillés des services échoués :" >> error-log.txt
-            for service in suricata wazuh elk opencti; do
-              if docker service ls | grep -q "$service"; then
+            for service in Suricata wazuh ELK opencti; do
+              if docker stack ps $service 2>/dev/null | grep -q "Failed\|Rejected\|Shutdown\|Complete"; then
                 echo "🔍 Logs pour service: $service" >> error-log.txt
                 docker service logs $service >> error-log.txt 2>&1
               else
-                echo "⚠️ Service $service non trouvé, impossible de récupérer les logs." >> error-log.txt
+                echo "⚠️ Service $service non actif ou introuvable, impossible de récupérer les logs." >> error-log.txt
               fi
             done
   
