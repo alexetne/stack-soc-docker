@@ -1,0 +1,13 @@
+volumes:
+ certs:
+   driver: local
+ esdata01:
+   driver: local
+ kibanadata:
+   driver: local
+ metricbeatdata01:
+   driver: local
+ filebeatdata01:
+   driver: local
+ logstashdata01:
+   driver: local
