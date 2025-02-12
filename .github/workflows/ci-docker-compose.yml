@@ -66,10 +66,19 @@ jobs:
 
       - name: 🚀 Déployer les services
         run: |
-          for service in suricata wazuh elk opencti; do
-            docker stack deploy -c "$service/docker-compose.yml" "$service" 2>&1 | tee logs_$service.txt || echo "${service^^}_FAILED=true" >> $GITHUB_ENV
-            sleep 10
-          done
+            echo "🛠️ Déploiement des services..." > deploy_errors.log
+            
+            for service in suricata wazuh elk opencti; do
+              echo "🔄 Déploiement de $service..." | tee -a deploy_errors.log
+              docker stack deploy -c $service/docker-compose.yml $service 2>&1 | tee -a logs_$service.txt deploy_errors.log || echo "${service^^}_FAILED=true" >> $GITHUB_ENV
+              sleep 10
+            done
+  
+      - name: 📦 Stocker les logs de déploiement pour check_errors
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy_logs
+          path: deploy_errors.log
 
 
   ###########################
@@ -114,25 +123,31 @@ jobs:
     outputs:
       test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
-      - name: 🔄 Restaurer le workspace avec logs
+      - name: 📥 Récupérer les logs du déploiement
         uses: actions/download-artifact@v4
         with:
-          name: workspace
+          name: deploy_logs
           path: .
 
       - name: 🚨 Vérifier les erreurs
-        id: detect_failure
         run: |
           echo "TEST_FAILED=false" >> $GITHUB_ENV
-
+          
+          # Vérifier les logs individuels des services
           for service in suricata wazuh elk opencti; do
             log_file="logs_$service.txt"
             if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot" "$log_file") ]]; then
+              echo "⚠️ Erreur détectée dans $log_file"
               echo "TEST_FAILED=true" >> $GITHUB_ENV
-              echo "test_failed=true" >> $GITHUB_OUTPUT  # 🔥 Nouvelle méthode
               break
             fi
           done
+
+          # Vérifier le log global du déploiement
+          if grep -i "error\|failed\|cannot\|swarm manager" deploy_errors.log; then
+            echo "🚨 Erreur trouvée dans deploy_errors.log"
+            echo "TEST_FAILED=true" >> $GITHUB_ENV
+          fi
 
   ###########################
   #   GESTION DES BRANCHES  #
