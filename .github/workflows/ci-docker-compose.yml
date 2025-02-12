@@ -14,11 +14,9 @@ jobs:
   ###########################
   setup:
     runs-on: ubuntu-latest
-    outputs:
-      test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
       - name: 📥 Cloner le dépôt
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: ⚙️ Configurer Docker et Swarm
         run: docker swarm init || true
@@ -33,10 +31,12 @@ jobs:
           done
 
       - name: 💾 Sauvegarder le workspace pour les prochains jobs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: workspace
           path: .
+          retention-days: 1  # Garde les fichiers pendant 1 jour (ajustable)
+          compression-level: 6  # Niveau de compression pour économiser de l'espace
 
   ###########################
   #      DÉPLOIEMENT        #
@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 🔄 Restaurer le workspace
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: workspace
           path: .
