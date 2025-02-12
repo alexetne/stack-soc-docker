@@ -116,6 +116,11 @@ jobs:
           name: deploy_logs
           path: .
 
+      - name: 🔍 Vérifier le contenu du fichier `deploy_errors.log`
+        run: |
+          echo "📂 Contenu du fichier deploy_errors.log :"
+          cat deploy_errors.log || echo "⚠️ Le fichier deploy_errors.log est vide ou introuvable."
+
       - name: 🚨 Vérifier les erreurs
         id: detect_failure
         run: |
@@ -131,7 +136,14 @@ jobs:
             fi
           done
 
+          # Vérifier le log global du déploiement
+          if grep -i "error\|failed\|cannot\|swarm manager" deploy_errors.log; then
+            echo "🚨 Erreur trouvée dans deploy_errors.log"
+            TEST_FAILED=true
+          fi
+
           echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
+
 
   ###########################
   #   GESTION DES BRANCHES  #
