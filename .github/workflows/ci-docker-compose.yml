@@ -18,18 +18,14 @@ jobs:
       - name: 📥 Cloner le dépôt
         uses: actions/checkout@v4
 
-      - name: ⚙️ Vérifier et Initialiser Docker Swarm
-        run: |
-          if ! docker info | grep -q "Swarm: active"; then
-            echo "⚠️ Swarm n'est pas actif, initialisation..."
-            docker swarm init || true
-          fi
+      - name: ⚙️ Configurer Docker et Swarm
+        run: docker swarm init || true
 
-      - name: 🔎 Vérifier les fichiers Docker Compose
+      - name: 🔎 Vérifier l'existence des fichiers Docker Compose
         run: |
           for service in suricata wazuh elk opencti; do
             if [[ ! -f "$service/docker-compose.yml" ]]; then
-              echo "❌ Fichier $service/docker-compose.yml introuvable."
+              echo "❌ Fichier manquant : $service/docker-compose.yml"
               exit 1
             fi
           done
@@ -43,17 +39,10 @@ jobs:
             .git/
           retention-days: 1
 
-      - name: 💾 Sauvegarder `.git/` séparément
-        uses: actions/upload-artifact@v4
-        with:
-          name: git-repo
-          path: .git/
-          retention-days: 1
-
   ###########################
-  #      DÉPLOIEMENT        #
+  #      AJOUT MANAGER      #
   ###########################
-  deploy:
+  manager:
     needs: setup
     runs-on: ubuntu-latest
     steps:
@@ -63,49 +52,51 @@ jobs:
           name: workspace
           path: .
 
-      # Déploiement séparé pour chaque service
-      - name: 🚀 Déploiement de Suricata
+      - name: 🔍 Vérifier si un manager est déjà présent
         run: |
-          docker stack deploy -c suricata/docker-compose.yml suricata 2>&1 | tee logs_suricata.txt || echo "SURICATA_FAILED=true" >> $GITHUB_ENV
-          sleep 5
-      - name: 📦 Stocker les logs de Suricata
-        uses: actions/upload-artifact@v4
-        with:
-          name: logs_suricata
-          path: logs_suricata.txt
+          if docker info | grep -q "Swarm: active"; then
+            echo "✅ Swarm déjà actif"
+          else
+            echo "⚠️ Swarm non actif, récupération du token..."
+            TOKEN=$(docker swarm join-token manager -q)
+            echo "TOKEN=$TOKEN" >> $GITHUB_ENV
+          fi
 
-      - name: 🚀 Déploiement de Wazuh
+      - name: 🛠️ Ajouter un manager
+        if: env.TOKEN != ''
         run: |
-          docker stack deploy -c wazuh/docker-compose.yml wazuh 2>&1 | tee logs_wazuh.txt || echo "WAZUH_FAILED=true" >> $GITHUB_ENV
-          sleep 5
-      - name: 📦 Stocker les logs de Wazuh
-        uses: actions/upload-artifact@v4
-        with:
-          name: logs_wazuh
-          path: logs_wazuh.txt
-
-      - name: 🚀 Déploiement de ELK
-        run: |
-          docker stack deploy -c elk/docker-compose.yml elk 2>&1 | tee logs_elk.txt || echo "ELK_FAILED=true" >> $GITHUB_ENV
-          sleep 5
-      - name: 📦 Stocker les logs de ELK
-        uses: actions/upload-artifact@v4
-        with:
-          name: logs_elk
-          path: logs_elk.txt
-
-      - name: 🚀 Déploiement de OpenCTI
-        run: |
-          docker stack deploy -c opencti/docker-compose.yml opencti 2>&1 | tee logs_opencti.txt || echo "OPENCTI_FAILED=true" >> $GITHUB_ENV
-          sleep 5
-      - name: 📦 Stocker les logs de OpenCTI
-        uses: actions/upload-artifact@v4
-        with:
-          name: logs_opencti
-          path: logs_opencti.txt
+          docker swarm join --token $TOKEN 10.1.0.104:2377 || echo "⚠️ Impossible d'ajouter un manager"
 
   ###########################
-  #        NETTOYAGE        #
+  #      DÉPLOIEMENT       #
+  ###########################
+  deploy:
+    needs: manager
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [suricata, wazuh, elk, opencti]
+    steps:
+      - name: 🔄 Restaurer le workspace
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: .
+
+      - name: 🚀 Déployer ${{ matrix.service }}
+        run: |
+          echo "🔄 Déploiement de ${{ matrix.service }}..."
+          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt || echo "${{ matrix.service }}_FAILED=true" >> $GITHUB_ENV
+          sleep 10
+
+      - name: 📦 Stocker les logs de ${{ matrix.service }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs_${{ matrix.service }}
+          path: logs_${{ matrix.service }}.txt
+
+  ###########################
+  #       NETTOYAGE        #
   ###########################
   cleanup:
     needs: deploy
@@ -122,24 +113,16 @@ jobs:
         run: |
           if ! docker info | grep -q "Swarm: active"; then
             echo "⚠️ Swarm n'est pas actif, initialisation en cours..."
-            docker swarm init || { echo "❌ Échec de l'initialisation de Swarm"; exit 1; }
-          else
-            echo "✅ Swarm est déjà actif."
+            docker swarm init || true
           fi
 
       - name: 🗑️ Nettoyer les services
         run: |
-          if ! docker info | grep -q "Swarm: active"; then
-            echo "❌ Swarm n'est toujours pas actif, impossible de nettoyer les services."
-            exit 1
-          fi
-
-          echo "🗑️ Vérification des stacks existantes..."
           docker stack ls
           for service in suricata wazuh elk opencti; do
             if docker stack ls | grep -q "$service"; then
               echo "🗑️ Suppression de la stack $service..."
-              docker stack rm $service || echo "⚠️ Erreur lors de la suppression de $service"
+              docker stack rm $service || true
             else
               echo "⚠️ Stack $service introuvable, rien à supprimer."
             fi
@@ -157,35 +140,22 @@ jobs:
       - name: 📥 Récupérer les logs
         uses: actions/download-artifact@v4
         with:
-          name: logs_suricata
-          path: .
-      - uses: actions/download-artifact@v4
-        with:
-          name: logs_wazuh
-          path: .
-      - uses: actions/download-artifact@v4
-        with:
-          name: logs_elk
-          path: .
-      - uses: actions/download-artifact@v4
-        with:
-          name: logs_opencti
-          path: .
+          name: logs_${{ matrix.service }}
+          path: logs
 
       - name: 🚨 Vérifier les erreurs
         id: detect_failure
         run: |
           TEST_FAILED=false
-          
           for service in suricata wazuh elk opencti; do
-            log_file="logs_$service.txt"
-            if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot\|swarm manager" "$log_file") ]]; then
+            log_file="logs/logs_$service.txt"
+            if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot" "$log_file") ]]; then
               echo "⚠️ Erreur détectée dans $log_file"
               TEST_FAILED=true
+              break
             fi
           done
 
-          echo "test_failed=$TEST_FAILED" >> $GITHUB_ENV
           echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
 
   ###########################
@@ -196,40 +166,44 @@ jobs:
     if: needs.check_errors.outputs.test_failed == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: 📥 Cloner le dépôt (obligatoire pour Git)
+      - name: 📥 Cloner le dépôt
         uses: actions/checkout@v4
 
-      - name: 🔄 Restaurer le workspace
+      - name: 🔄 Restaurer les logs
         uses: actions/download-artifact@v4
         with:
-          name: workspace
-          path: .
-
-      - name: 🚀 Vérifier `.git/`
-        run: ls -la .git || echo "⚠️ Le dossier .git est manquant"
+          name: logs
+          path: logs
 
       - name: 🏷️ Déterminer la branche cible
         run: |
-          TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
-          echo "BRANCH=erreur-$TIMESTAMP" >> $GITHUB_ENV
+          if [[ "${{ needs.check_errors.outputs.test_failed }}" == "true" ]]; then
+            TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
+            echo "BRANCH=erreur-$TIMESTAMP" >> $GITHUB_ENV
+          else
+            echo "BRANCH=develop" >> $GITHUB_ENV
+          fi
 
-      - name: 📥 Récupérer les logs
-        uses: actions/download-artifact@v4
-        with:
-          name: logs_suricata
-          path: .
-      - uses: actions/download-artifact@v4
-        with:
-          name: logs_wazuh
-          path: .
-      - uses: actions/download-artifact@v4
-        with:
-          name: logs_elk
-          path: .
-      - uses: actions/download-artifact@v4
-        with:
-          name: logs_opencti
-          path: .
+      - name: 📝 Générer le fichier de logs
+        run: |
+          echo "📅 Date : $(date)" > error-log.txt
+          docker info >> error-log.txt 2>&1
+          docker stack ls >> error-log.txt 2>&1
+          docker service ls >> error-log.txt 2>&1
+          docker ps -a >> error-log.txt 2>&1
+
+          for service in suricata wazuh elk opencti; do
+            log_file="logs/logs_$service.txt"
+  
+            if [[ -f "$log_file" ]]; then
+              echo "❌ ERREUR DE DÉPLOIEMENT POUR $service :" >> error-log.txt
+              cat "$log_file" >> error-log.txt
+            else
+              echo "⚠️ Aucun log trouvé pour $service, peut-être un échec de création ?" >> error-log.txt
+            fi
+          done
+
+          git add error-log.txt
 
       - name: 🚀 Pousser la branche cible
         env:
@@ -238,9 +212,7 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "github-actions@github.com"
 
-          git fetch origin
           git checkout -b ${{ env.BRANCH }} || git checkout ${{ env.BRANCH }}
 
-          git add logs_*.txt
-          git commit -m "Mise à jour automatique via GitHub Actions - Logs détaillés par service" || echo "Aucune modification à commit"
+          git commit -m "Mise à jour automatique via GitHub Actions" || echo "Aucune modification à commit"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.BRANCH }} --force
