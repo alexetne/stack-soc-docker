@@ -25,7 +25,7 @@ jobs:
     ###########################
     - name: 🛡️ Lancer les services Suricata
       run: |
-        docker stack deploy -c Suricata/docker-compose.yml suricata || echo "TEST_FAILED=true" >> $GITHUB_ENV
+        docker stack deploy -c Suricata/docker-compose.yml suricata || (echo "TEST_FAILED=true" >> $GITHUB_ENV && exit 1)
         sleep 10
 
     # - name: ✅ Vérifier l'état de Suricata
@@ -38,7 +38,7 @@ jobs:
     ###########################
     - name: 📊 Lancer les services Wazuh
       run: |
-        docker stack deploy -c wazuh/docker-compose.yml wazuh || echo "TEST_FAILED=true" >> $GITHUB_ENV
+        docker stack deploy -c wazuh/docker-compose.yml wazuh || (echo "TEST_FAILED=true" >> $GITHUB_ENV && exit 1)
         sleep 10
 
     # - name: ✅ Vérifier l'état de Wazuh
@@ -53,7 +53,7 @@ jobs:
     ###########################
     - name: 📈 Lancer les services ELK
       run: |
-        docker stack deploy -c ELK/docker-compose.yml elk || echo "TEST_FAILED=true" >> $GITHUB_ENV
+        docker stack deploy -c ELK/docker-compose.yml elk || (echo "TEST_FAILED=true" >> $GITHUB_ENV && exit 1)
         sleep 10
 
     # - name: ✅ Vérifier l'état de ELK
@@ -68,7 +68,7 @@ jobs:
     ###########################
     - name: 🔍 Lancer les services OpenCTI
       run: |
-        docker stack deploy -c opencti/docker-compose.yml opencti || echo "TEST_FAILED=true" >> $GITHUB_ENV
+        docker stack deploy -c opencti/docker-compose.yml opencti || (echo "TEST_FAILED=true" >> $GITHUB_ENV && exit 1)
         sleep 10
 
     # - name: ✅ Vérifier l'état de OpenCTI
