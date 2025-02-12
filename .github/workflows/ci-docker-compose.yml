@@ -124,31 +124,49 @@ jobs:
         with:
           path: logs/
 
-      - name: 📝 Générer un fichier de logs consolidé
+      - name: 📝 Vérifier et générer un fichier de logs consolidé
         run: |
+          LOGS_FOUND=false
           echo "📅 Date : $(date)" > error-log.txt
           
           for service in suricata wazuh elk opencti; do
             log_file="logs/logs_$service/logs_$service.txt"
             
             if [[ -f "$log_file" ]]; then
+              LOGS_FOUND=true
               echo "❌ ERREUR DE DÉPLOIEMENT POUR $service :" >> error-log.txt
               cat "$log_file" >> error-log.txt
             else
-              echo "⚠️ Aucun log trouvé pour $service, peut-être un échec de création ?" >> error-log.txt
+              echo "✅ Aucun log trouvé pour $service." >> error-log.txt
             fi
           done
 
-          git add error-log.txt
+          if [[ "$LOGS_FOUND" == "true" ]]; then
+            echo "ERROR_LOGS=true" >> $GITHUB_ENV
+            git add error-log.txt
+          else
+            echo "ERROR_LOGS=false" >> $GITHUB_ENV
+          fi
 
       - name: 🚀 Déterminer la branche cible et Pousser les logs
+        if: env.ERROR_LOGS == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@github.com"
+
           TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
           BRANCH="erreur-$TIMESTAMP"
 
           git checkout -b $BRANCH || git checkout $BRANCH
 
-          git commit -m "Mise à jour automatique via GitHub Actions" || echo "Aucune modification à commit"
+          git commit -m "Ajout des logs d'erreur via GitHub Actions" || echo "Aucune modification à commit"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $BRANCH --force
+
+      - name: 🔀 Créer une Pull Request vers `develop` si aucun log d'erreur n'est trouvé
+        if: env.ERROR_LOGS == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create --base develop --head ${{ github.ref_name }} --title "Merge successful deployment" --body "Tous les services se sont déployés correctement. PR automatique vers develop."
