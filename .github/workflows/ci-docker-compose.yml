@@ -181,9 +181,12 @@ jobs:
 
           for service in suricata wazuh elk opencti; do
             log_file="logs_$service.txt"
+  
             if [[ -f "$log_file" ]]; then
               echo "❌ ERREUR DE DÉPLOIEMENT POUR $service :" >> error-log.txt
               cat "$log_file" >> error-log.txt
+            else
+              echo "⚠️ Aucun log trouvé pour $service, peut-être un échec de création ?" >> error-log.txt
             fi
           done
 
