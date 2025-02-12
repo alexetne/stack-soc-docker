@@ -19,47 +19,25 @@ jobs:
     - name: ⚙️ Configurer Docker
       uses: docker/setup-buildx-action@v2
 
-    # Test des services Suricata
-    # - name: 🛡️ Lancer les services Suricata
-    #   run: |
-    #     docker compose -f Suricata/Docker-compose.yml up -d --build
-
-    # - name: ✅ Vérifier l'état de Suricata
-    #   run: |
-    #     docker compose -f Suricata/docker-compose.yml ps
-    #     docker exec suricata suricata -V || exit 1
-
     # Test des services Wazuh
     - name: 📊 Lancer les services Wazuh
       run: |
-        docker compose -f wazuh/docker-compose.yml up -d --build
-
-    # - name: ✅ Vérifier l'état de Wazuh
-    #   run: |
-    #     docker compose -f wazuh/docker-compose.yml ps
-    #     curl -f http://localhost:5601 || exit 1  # Vérifie le dashboard
-    #     curl -f http://localhost:55000 || exit 1  # Vérifie l'API Wazuh
+        docker compose -f wazuh/docker-compose.yml up -d --build || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
     # Test des services ELK
     - name: 📈 Lancer les services ELK
       run: |
-        docker compose -f ELK/Docker-compose.yml up -d --build
-
-    # - name: ✅ Vérifier l'état de ELK
-    #   run: |
-    #     docker compose -f ELK/Docker-compose.yml ps
-    #     curl -f http://localhost:5601 || exit 1  # Vérifie Kibana
-    #     curl -f http://localhost:9200 || exit 1  # Vérifie Elasticsearch
+        docker compose -f ELK/Docker-compose.yml up -d --build || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
     # Test des services OpenCTI
     - name: 🔍 Lancer les services OpenCTI
       run: |
-        docker compose -f opencti/docker-compose.yml up -d --build
+        docker compose -f opencti/docker-compose.yml up -d --build || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
-    # - name: ✅ Vérifier l'état de OpenCTI
-    #   run: |
-    #     docker compose -f opencti/docker-compose.yml ps
-    #     curl -f http://localhost:8080 || exit 1  # Vérifie l'interface OpenCTI
+    # Test des services Suricata
+    - name: 🛡️ Lancer les services Suricata
+      run: |
+        docker compose -f Suricata/Docker-compose.yml up -d --build || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
     - name: ✅ Vérifier l'état des services
       id: tests
@@ -68,7 +46,6 @@ jobs:
         docker compose -f wazuh/docker-compose.yml ps
         docker compose -f ELK/Docker-compose.yml ps
         docker compose -f opencti/docker-compose.yml ps
-        # Vérification des services
         curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
         curl -f http://localhost:9200 || echo "TEST_FAILED=true" >> $GITHUB_ENV
         curl -f http://localhost:8080 || echo "TEST_FAILED=true" >> $GITHUB_ENV
@@ -80,15 +57,16 @@ jobs:
         docker compose -f ELK/Docker-compose.yml down
         docker compose -f opencti/docker-compose.yml down
 
-    # Gestion de la branche cible
+    # Gestion de la branche cible avec correction
     - name: 🏷️ Déterminer la branche cible
       id: branch_target
       run: |
-        if [ -z "$TEST_FAILED" ]; then
-          echo "BRANCH=dev" >> $GITHUB_ENV
-        else
+        echo "TEST_FAILED=${{ env.TEST_FAILED }}"  # Debug pour voir si la variable est bien définie
+        if [[ "${{ env.TEST_FAILED }}" == "true" ]]; then
           TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
           echo "BRANCH=erreur-$TIMESTAMP" >> $GITHUB_ENV
+        else
+          echo "BRANCH=dev" >> $GITHUB_ENV
         fi
 
     # Création et push sur la bonne branche
@@ -99,4 +77,4 @@ jobs:
         git checkout -b ${{ env.BRANCH }}
         git add .
         git commit -m "Mise à jour automatique via GitHub Actions"
-        git push origin ${{ env.BRANCH }} --force
+        git push origin ${{ env.BRANCH }} --force || echo "PUSH_FAILED=true" >> $GITHUB_ENV
