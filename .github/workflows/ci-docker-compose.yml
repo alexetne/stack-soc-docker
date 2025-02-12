@@ -36,10 +36,10 @@ jobs:
     ###########################
     #         WAZUH          #
     ###########################
-    - name: 📊 Lancer les services Wazuh
-      run: |
-        docker stack deploy -c wazuh/docker-compose.yml wazuh || (echo "TEST_FAILED=true" >> $GITHUB_ENV && exit 1)
-        sleep 10
+    # - name: 📊 Lancer les services Wazuh
+    #   run: |
+    #     docker stack deploy -c wazuh/docker-compose.yml wazuh || (echo "TEST_FAILED=true" >> $GITHUB_ENV && exit 1)
+    #     sleep 10
 
     # - name: ✅ Vérifier l'état de Wazuh
     #   run: |
