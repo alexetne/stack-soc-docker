@@ -107,7 +107,6 @@ jobs:
   ###########################
   #        NETTOYAGE        #
   ###########################
-
   cleanup:
     needs: deploy
     runs-on: ubuntu-latest
@@ -123,16 +122,24 @@ jobs:
         run: |
           if ! docker info | grep -q "Swarm: active"; then
             echo "⚠️ Swarm n'est pas actif, initialisation en cours..."
-            docker swarm init || true
+            docker swarm init || { echo "❌ Échec de l'initialisation de Swarm"; exit 1; }
+          else
+            echo "✅ Swarm est déjà actif."
           fi
 
       - name: 🗑️ Nettoyer les services
         run: |
+          if ! docker info | grep -q "Swarm: active"; then
+            echo "❌ Swarm n'est toujours pas actif, impossible de nettoyer les services."
+            exit 1
+          fi
+
+          echo "🗑️ Vérification des stacks existantes..."
           docker stack ls
           for service in suricata wazuh elk opencti; do
             if docker stack ls | grep -q "$service"; then
               echo "🗑️ Suppression de la stack $service..."
-              docker stack rm $service || true
+              docker stack rm $service || echo "⚠️ Erreur lors de la suppression de $service"
             else
               echo "⚠️ Stack $service introuvable, rien à supprimer."
             fi
