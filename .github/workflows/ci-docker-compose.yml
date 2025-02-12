@@ -23,11 +23,20 @@ jobs:
       - name: ⚙️ Configurer Docker et Swarm
         run: docker swarm init || true
 
-      - name: 🔎 Vérifier l'existence des fichiers
+      - name: 🔎 Vérifier l'existence des fichiers Docker Compose
         run: |
           for service in suricata wazuh elk opencti; do
-            ls -l $service/docker-compose.yml || exit 1
+            if [[ ! -f "$service/docker-compose.yml" ]]; then
+              echo "❌ Fichier manquant : $service/docker-compose.yml"
+              exit 1
+            fi
           done
+
+      - name: 💾 Sauvegarder le workspace pour les prochains jobs
+        uses: actions/upload-artifact@v3
+        with:
+          name: workspace
+          path: .
 
   ###########################
   #      DÉPLOIEMENT        #
@@ -36,18 +45,30 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - name: 🔎 Vérifier l'existence des fichiers
+      - name: 🔄 Restaurer le workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: workspace
+          path: .
+
+      - name: 🔎 Vérifier les fichiers après restauration
         run: |
+          echo "📂 Vérification des fichiers après restauration..."
+          ls -R
           for service in suricata wazuh elk opencti; do
-            ls -l $service/docker-compose.yml || exit 1
+            if [[ ! -f "$service/docker-compose.yml" ]]; then
+              echo "❌ Fichier manquant après restauration : $service/docker-compose.yml"
+              exit 1
+            fi
           done
-      
+
       - name: 🚀 Déployer les services
         run: |
           for service in suricata wazuh elk opencti; do
-            docker stack deploy -c $service/docker-compose.yml $service 2>&1 | tee logs_$service.txt || echo "${service^^}_FAILED=true" >> $GITHUB_ENV
+            docker stack deploy -c "$service/docker-compose.yml" "$service" 2>&1 | tee logs_$service.txt || echo "${service^^}_FAILED=true" >> $GITHUB_ENV
             sleep 10
           done
+
 
   ###########################
   #        NETTOYAGE        #
@@ -92,6 +113,12 @@ jobs:
     needs: check_errors
     runs-on: ubuntu-latest
     steps:
+      - name: 🔄 Restaurer le workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: workspace
+          path: .
+
       - name: 🏷️ Déterminer la branche cible
         run: |
           if [[ "${{ needs.check_errors.outputs.test_failed }}" == "true" ]]; then
