@@ -126,7 +126,6 @@ jobs:
         run: |
           TEST_FAILED=false
           
-          # Vérifier les logs des services
           for service in suricata wazuh elk opencti; do
             log_file="logs_$service.txt"
             if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot\|swarm manager" "$log_file") ]]; then
@@ -136,14 +135,12 @@ jobs:
             fi
           done
 
-          # Vérifier le log global du déploiement
           if grep -i "error\|failed\|cannot\|swarm manager" deploy_errors.log; then
             echo "🚨 Erreur trouvée dans deploy_errors.log"
             TEST_FAILED=true
           fi
 
           echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
-
 
   ###########################
   #   GESTION DES BRANCHES  #
@@ -182,9 +179,11 @@ jobs:
           for service in suricata wazuh elk opencti; do
             log_file="logs_$service.txt"
   
-            if [[ -f "$log_file" ]]; then
+            if [[ -f "$log_file" && -s "$log_file" ]]; then
               echo "❌ ERREUR DE DÉPLOIEMENT POUR $service :" >> error-log.txt
               cat "$log_file" >> error-log.txt
+            elif [[ -f "$log_file" ]]; then
+              echo "⚠️ Le fichier log pour $service existe mais est vide." >> error-log.txt
             else
               echo "⚠️ Aucun log trouvé pour $service, peut-être un échec de création ?" >> error-log.txt
             fi
