@@ -90,6 +90,7 @@ jobs:
   #  DÉTECTION DES ERREURS  #
   ###########################
   check_errors:
+    needs: deploy
     runs-on: ubuntu-latest
     outputs:
       test_failed: ${{ steps.detect_failure.outputs.test_failed }}
