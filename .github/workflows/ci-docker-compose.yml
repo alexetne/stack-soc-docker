@@ -72,7 +72,7 @@ jobs:
         sleep 10
 
     - name: ✅ Vérifier l'état de OpenCTI
-     run: |
+      run: |
        echo "Attente de la montée de OpenCTI..."
        timeout 180 bash -c 'while [[ $(docker service ps opencti --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
        curl -f http://localhost:8080 || echo "TEST_FAILED=true" >> $GITHUB_ENV
