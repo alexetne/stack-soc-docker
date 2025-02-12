@@ -2,9 +2,8 @@ name: Docker Compose CI
 
 on:
   push:
-    branches:
+    branches-ignore:
       - main
-      - test-ci
   pull_request:
     branches:
       - main
