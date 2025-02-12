@@ -108,47 +108,46 @@ jobs:
           echo "BRANCH=develop" >> $GITHUB_ENV
         fi
 
-    - name: 🚀 Créer et Pousser la branche avec logs détaillés
+    - name: 🚀 Créer et Pousser la branche uniquement en cas d'erreur
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@github.com"
   
-        git checkout -b ${{ env.BRANCH }}
+          git checkout -b ${{ env.BRANCH }}
   
-        echo "===== LOG DU PIPELINE =====" > error-log.txt
-        echo "Date : $(date)" >> error-log.txt
-        echo "===========================" >> error-log.txt
+          # Si une erreur est détectée, générer un fichier de logs
+          if [[ "${{ env.TEST_FAILED }}" == "true" ]]; then
+            echo "===== LOG DU PIPELINE =====" > error-log.txt
+            echo "Date : $(date)" >> error-log.txt
+            echo "===========================" >> error-log.txt
   
-        echo "➡️ Docker Info :" >> error-log.txt
-        docker info >> error-log.txt 2>&1
+            echo "➡️ Docker Info :" >> error-log.txt
+            docker info >> error-log.txt 2>&1
   
-        echo "➡️ Docker Version :" >> error-log.txt
-        docker version >> error-log.txt 2>&1
+            echo "➡️ Docker Version :" >> error-log.txt
+            docker version >> error-log.txt 2>&1
   
-        echo "➡️ Liste des Stacks Docker :" >> error-log.txt
-        docker stack ls >> error-log.txt 2>&1
+            echo "➡️ Liste des Stacks Docker :" >> error-log.txt
+            docker stack ls >> error-log.txt 2>&1
   
-        echo "➡️ Liste des Services Swarm :" >> error-log.txt
-        docker service ls >> error-log.txt 2>&1
+            echo "➡️ Liste des Services Swarm :" >> error-log.txt
+            docker service ls >> error-log.txt 2>&1
   
-        echo "➡️ Liste des Conteneurs en cours d'exécution :" >> error-log.txt
-        docker ps -a >> error-log.txt 2>&1
+            echo "➡️ Liste des Conteneurs en cours d'exécution :" >> error-log.txt
+            docker ps -a >> error-log.txt 2>&1
   
-        echo "➡️ Logs détaillés des services échoués :" >> error-log.txt
-        for service in suricata wazuh elk opencti; do
-          echo "🔍 Logs pour service: $service" >> error-log.txt
-          docker service logs $service >> error-log.txt 2>&1 || echo "⚠️ Impossible d'obtenir les logs de $service" >> error-log.txt
-        done
+            echo "➡️ Logs détaillés des services échoués :" >> error-log.txt
+            for service in suricata wazuh elk opencti; do
+              echo "🔍 Logs pour service: $service" >> error-log.txt
+              docker service logs $service >> error-log.txt 2>&1 || echo "⚠️ Impossible d'obtenir les logs de $service" >> error-log.txt
+            done
   
-        echo "➡️ Logs du Daemon Docker (journalctl) :" >> error-log.txt
-        journalctl -u docker --no-pager --since "10 minutes ago" >> error-log.txt 2>&1 || echo "⚠️ Impossible d'obtenir les logs du daemon Docker" >> error-log.txt
+            git add error-log.txt
+          fi
   
-        echo "➡️ Liste des erreurs Kernel récentes (dmesg) :" >> error-log.txt
-        dmesg | tail -50 >> error-log.txt 2>&1 || echo "⚠️ Impossible d'obtenir les logs Kernel" >> error-log.txt
+          git commit -m "Mise à jour automatique via GitHub Actions" || echo "Aucune modification à commit"
   
-        git add error-log.txt
-        git commit -m "Mise à jour automatique via GitHub Actions [ERREUR]"
-        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.BRANCH }} --force
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.BRANCH }} --force
   
