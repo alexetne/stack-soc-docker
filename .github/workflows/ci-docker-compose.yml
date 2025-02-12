@@ -114,11 +114,25 @@ jobs:
       run: |
         git config --global user.name "GitHub Actions"
         git config --global user.email "github-actions@github.com"
-  
+
         git checkout -b ${{ env.BRANCH }}
-  
-        echo "Erreur détectée dans le pipeline à $(date)" >> error-log.txt
+
+        echo "===== LOG DU PIPELINE =====" > error-log.txt
+        echo "Date : $(date)" >> error-log.txt
+        echo "===========================" >> error-log.txt
+
+        {
+          docker service ls
+          docker stack ps suricata
+          docker stack ps wazuh
+          docker stack ps elk
+          docker stack ps opencti
+        } >> error-log.txt 2>&1 || echo "Erreur détectée, voir logs ci-dessus." >> error-log.txt
+
+        echo "======== FIN DES LOGS ========" >> error-log.txt
+        echo "⚠️ Vérifie les erreurs ci-dessus pour comprendre le problème." >> error-log.txt
+
         git add error-log.txt
-  
         git commit -m "Mise à jour automatique via GitHub Actions [ERREUR]"
+
         git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.BRANCH }} --force
