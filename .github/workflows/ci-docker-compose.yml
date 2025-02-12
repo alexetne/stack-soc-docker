@@ -13,123 +13,133 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: 📥 Cloner le dépôt
-      uses: actions/checkout@v3
+      - name: 📥 Cloner le dépôt
+        uses: actions/checkout@v3
 
-    - name: ⚙️ Configurer Docker et Swarm
-      run: |
-        docker swarm init || true
-    
-    - name: 🔎 Vérifier l'existence des fichiers
-      run: |
-        ls -l Suricata/Docker-compose.yml || exit 1
-        ls -l wazuh/docker-compose.yml || exit 1
-        ls -l ELK/Docker-compose.yml || exit 1
-        ls -l opencti/docker-compose.yml || exit 1
+      - name: ⚙️ Configurer Docker et Swarm
+        run: |
+          docker swarm init || true
 
-    ###########################
-    #        SURICATA         #
-    ###########################
-    - name: 🛡️ Lancer les services Suricata
-      run: |
-        docker stack deploy -c Suricata/Docker-compose.yml suricata || echo "TEST_FAILED=true" >> $GITHUB_ENV
-        sleep 10
+      - name: 🔎 Vérifier l'existence des fichiers
+        run: |
+          ls -l Suricata/Docker-compose.yml || exit 1
+          ls -l wazuh/docker-compose.yml || exit 1
+          ls -l ELK/Docker-compose.yml || exit 1
+          ls -l opencti/docker-compose.yml || exit 1
 
-    # - name: ✅ Vérifier l'état de Suricata
-    #   run: |
-    #     echo "Attente de la montée de Suricata..."
-    #     timeout 180 bash -c 'while [[ $(docker service ps suricata --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
+      ###########################
+      #        SURICATA         #
+      ###########################
+      - name: 🛡️ Lancer les services Suricata
+        run: |
+          docker stack deploy -c Suricata/Docker-compose.yml suricata 2>&1 | tee logs_suricata.txt || echo "SURICATA_FAILED=true" >> $GITHUB_ENV
+          sleep 10
 
-    ###########################
-    #         WAZUH          #
-    ###########################
-    - name: 📊 Lancer les services Wazuh
-      run: |
-        docker stack deploy -c wazuh/docker-compose.yml wazuh || echo "TEST_FAILED=true" >> $GITHUB_ENV
-        sleep 10
+      # - name: ✅ Vérifier l'état de Suricata
+      #   run: |
+      #     echo "Attente de la montée de Suricata..."
+      #     timeout 180 bash -c 'while [[ $(docker service ps suricata --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
-    # - name: ✅ Vérifier l'état de Wazuh
-    #   run: |
-    #     echo "Attente de la montée de Wazuh..."
-    #     timeout 180 bash -c 'while [[ $(docker service ps wazuh --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
-    #     curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
-    #     curl -f http://localhost:55000 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+      ###########################
+      #         WAZUH          #
+      ###########################
+      - name: 📊 Lancer les services Wazuh
+        run: |
+          docker stack deploy -c wazuh/docker-compose.yml wazuh 2>&1 | tee logs_wazuh.txt || echo "WAZUH_FAILED=true" >> $GITHUB_ENV
+          sleep 10
 
-    ###########################
-    #          ELK           #
-    ###########################
-    - name: 📈 Lancer les services ELK
-      run: |
-        docker stack deploy -c ELK/Docker-compose.yml elk || echo "TEST_FAILED=true" >> $GITHUB_ENV
-        sleep 10
+      # - name: ✅ Vérifier l'état de Wazuh
+      #   run: |
+      #     echo "Attente de la montée de Wazuh..."
+      #     timeout 180 bash -c 'while [[ $(docker service ps wazuh --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
+      #     curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+      #     curl -f http://localhost:55000 || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
-    # - name: ✅ Vérifier l'état de ELK
-    #   run: |
-    #     echo "Attente de la montée de ELK..."
-    #     timeout 180 bash -c 'while [[ $(docker service ps elk --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
-    #     curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
-    #     curl -f http://localhost:9200 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+      ###########################
+      #          ELK           #
+      ###########################
+      - name: 📈 Lancer les services ELK
+        run: |
+          docker stack deploy -c ELK/Docker-compose.yml elk 2>&1 | tee logs_elk.txt || echo "ELK_FAILED=true" >> $GITHUB_ENV
+          sleep 10
 
-    ###########################
-    #        OPENCTI         #
-    ###########################
-    - name: 🔍 Lancer les services OpenCTI
-      run: |
-        docker stack deploy -c opencti/docker-compose.yml opencti || echo "TEST_FAILED=true" >> $GITHUB_ENV
-        sleep 10
+      # - name: ✅ Vérifier l'état de ELK
+      #   run: |
+      #     echo "Attente de la montée de ELK..."
+      #     timeout 180 bash -c 'while [[ $(docker service ps elk --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
+      #     curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+      #     curl -f http://localhost:9200 || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
-    # - name: ✅ Vérifier l'état de OpenCTI
-    #   run: |
-    #    echo "Attente de la montée de OpenCTI..."
-    #    timeout 180 bash -c 'while [[ $(docker service ps opencti --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
-    #    curl -f http://localhost:8080 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+      ###########################
+      #        OPENCTI         #
+      ###########################
+      - name: 🔍 Lancer les services OpenCTI
+        run: |
+          docker stack deploy -c opencti/docker-compose.yml opencti 2>&1 | tee logs_opencti.txt || echo "OPENCTI_FAILED=true" >> $GITHUB_ENV
+          sleep 10
 
-    ###########################
-    #   GESTION DES BRANCHES  #
-    ###########################
-    - name: 🏷️ Déterminer la branche cible
-      id: branch_target
-      run: |
-        echo "TEST_FAILED=${{ env.TEST_FAILED }}"  # Debug pour voir si la variable est bien définie
-        if [[ "${{ env.TEST_FAILED }}" == "true" ]]; then
-          TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
-          echo "BRANCH=erreur-$TIMESTAMP" >> $GITHUB_ENV
-        else
-          echo "BRANCH=develop" >> $GITHUB_ENV
-        fi
+      # - name: ✅ Vérifier l'état de OpenCTI
+      #   run: |
+      #    echo "Attente de la montée de OpenCTI..."
+      #    timeout 180 bash -c 'while [[ $(docker service ps opencti --format "{{.CurrentState}}" | grep -c "Running") -eq 0 ]]; do sleep 5; done' || echo "TEST_FAILED=true" >> $GITHUB_ENV
+      #    curl -f http://localhost:8080 || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
+      ###########################
+      #   GESTION DES BRANCHES  #
+      ###########################
+      - name: 🏷️ Déterminer la branche cible
+        id: branch_target
+        run: |
+          echo "TEST_FAILED=${{ env.TEST_FAILED }}"  # Debug pour voir si la variable est bien définie
+          if [[ "${{ env.TEST_FAILED }}" == "true" ]]; then
+            TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
+            echo "BRANCH=erreur-$TIMESTAMP" >> $GITHUB_ENV
+          else
+            echo "BRANCH=develop" >> $GITHUB_ENV
+          fi
 
-    - name: 🚀 Créer et Pousser la branche uniquement en cas d'erreur
-      env:
+      - name: 🚀 Créer et Pousser la branche avec logs détaillés en cas d'erreur
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
+        run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "github-actions@github.com"
-  
+
           git checkout -b ${{ env.BRANCH }}
-  
+
           if [[ "${{ env.TEST_FAILED }}" == "true" ]]; then
             echo "===== LOG DU PIPELINE =====" > error-log.txt
             echo "Date : $(date)" >> error-log.txt
             echo "===========================" >> error-log.txt
-  
+
             echo "➡️ Docker Info :" >> error-log.txt
             docker info >> error-log.txt 2>&1
-  
+
             echo "➡️ Docker Version :" >> error-log.txt
             docker version >> error-log.txt 2>&1
-  
+
             echo "➡️ Liste des Stacks Docker :" >> error-log.txt
             docker stack ls >> error-log.txt 2>&1
-  
+
             echo "➡️ Liste des Services Swarm :" >> error-log.txt
             docker service ls >> error-log.txt 2>&1
-  
+
             echo "➡️ Liste des Conteneurs en cours d'exécution :" >> error-log.txt
             docker ps -a >> error-log.txt 2>&1
-  
+
             echo "➡️ Logs détaillés des services échoués :" >> error-log.txt
-            for service in Suricata wazuh ELK opencti; do
+            
+            # Ajout des logs d'échec de stack deploy
+            for service in suricata wazuh elk opencti; do
+              log_file="logs_${service}.txt"
+              if [[ -f "$log_file" ]]; then
+                echo "❌ ERREUR DE DÉPLOIEMENT POUR $service :" >> error-log.txt
+                cat "$log_file" >> error-log.txt
+              fi
+            done
+
+            # Vérification de l'état des services
+            for service in suricata wazuh elk opencti; do
               if docker stack ps $service 2>/dev/null | grep -q "Failed\|Rejected\|Shutdown\|Complete"; then
                 echo "🔍 Logs pour service: $service" >> error-log.txt
                 docker service logs $service >> error-log.txt 2>&1
@@ -137,20 +147,20 @@ jobs:
                 echo "⚠️ Service $service non actif ou introuvable, impossible de récupérer les logs." >> error-log.txt
               fi
             done
-  
+
             git add error-log.txt
           fi
-  
+
           git commit -m "Mise à jour automatique via GitHub Actions" || echo "Aucune modification à commit"
-  
+
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.BRANCH }} --force
-    
-    ###########################
-    #       NETTOYAGE        #
-    ###########################
-    - name: 🗑️ Nettoyer les services
-      run: |
-        docker stack rm suricata || true
-        docker stack rm wazuh || true
-        docker stack rm elk || true
-        docker stack rm opencti || true
+
+        ###########################
+        #       NETTOYAGE        #
+        ###########################
+      - name: 🗑️ Nettoyer les services
+        run: |
+          docker stack rm suricata || true
+          docker stack rm wazuh || true
+          docker stack rm elk || true
+          docker stack rm opencti || true
