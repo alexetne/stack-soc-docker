@@ -156,7 +156,7 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "github-actions@github.com"
 
-          TIMESTAMP=$(date -u +"%Y-%m-%d_%H-%M-%S")
+          TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
           BRANCH="erreur-$TIMESTAMP"
 
           git checkout -b $BRANCH || git checkout $BRANCH
