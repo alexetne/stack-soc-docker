@@ -52,19 +52,28 @@ jobs:
           name: workspace
           path: .
 
-      - name: 🔍 Vérifier si un manager est déjà présent
+      - name: 🔍 Vérifier si Swarm est déjà actif
+        id: check_swarm
         run: |
           if docker info | grep -q "Swarm: active"; then
             echo "✅ Swarm déjà actif"
+            echo "SWARM_ACTIVE=true" >> $GITHUB_ENV
           else
-            echo "⚠️ Swarm non actif, récupération du token..."
-            TOKEN=$(docker swarm join-token manager -q)
-            echo "TOKEN=$TOKEN" >> $GITHUB_ENV
+            echo "⚠️ Swarm non actif, initialisation en cours..."
+            docker swarm init || true
+            echo "SWARM_ACTIVE=false" >> $GITHUB_ENV
           fi
 
-      - name: 🛠️ Ajouter un manager
+      - name: 🔑 Récupérer le token du manager (si Swarm actif)
+        if: env.SWARM_ACTIVE == 'true'
+        run: |
+          TOKEN=$(docker swarm join-token manager -q)
+          echo "TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - name: 🛠️ Ajouter un manager si nécessaire
         if: env.TOKEN != ''
         run: |
+          echo "Ajout du manager..."
           docker swarm join --token $TOKEN 10.1.0.104:2377 || echo "⚠️ Impossible d'ajouter un manager"
 
   ###########################
