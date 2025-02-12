@@ -30,7 +30,7 @@ jobs:
             fi
           done
 
-      - name: 💾 Sauvegarder le workspace (avec `.git/`)
+      - name: 💾 Sauvegarder le workspace
         uses: actions/upload-artifact@v4
         with:
           name: workspace
@@ -38,7 +38,6 @@ jobs:
             .
             .git/
           retention-days: 1
-          compression-level: 6
 
   ###########################
   #      DÉPLOIEMENT        #
@@ -53,33 +52,21 @@ jobs:
           name: workspace
           path: .
 
-      - name: 🔎 Vérifier les fichiers après restauration
-        run: |
-          echo "📂 Vérification des fichiers après restauration..."
-          ls -R
-          for service in suricata wazuh elk opencti; do
-            if [[ ! -f "$service/docker-compose.yml" ]]; then
-              echo "❌ Fichier manquant après restauration : $service/docker-compose.yml"
-              exit 1
-            fi
-          done
-
       - name: 🚀 Déployer les services
         run: |
-            echo "🛠️ Déploiement des services..." > deploy_errors.log
-            
-            for service in suricata wazuh elk opencti; do
-              echo "🔄 Déploiement de $service..." | tee -a deploy_errors.log
-              docker stack deploy -c $service/docker-compose.yml $service 2>&1 | tee -a logs_$service.txt deploy_errors.log || echo "${service^^}_FAILED=true" >> $GITHUB_ENV
-              sleep 10
-            done
+          echo "🛠️ Déploiement des services..." > deploy_errors.log
+          
+          for service in suricata wazuh elk opencti; do
+            echo "🔄 Déploiement de $service..." | tee -a deploy_errors.log
+            docker stack deploy -c $service/docker-compose.yml $service 2>&1 | tee -a logs_$service.txt deploy_errors.log || echo "${service^^}_FAILED=true" >> $GITHUB_ENV
+            sleep 10
+          done
   
-      - name: 📦 Stocker les logs de déploiement pour check_errors
+      - name: 📦 Stocker les logs pour `check_errors`
         uses: actions/upload-artifact@v4
         with:
           name: deploy_logs
           path: deploy_errors.log
-
 
   ###########################
   #        NETTOYAGE        #
@@ -89,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: 🔄 Restaurer le workspace (optionnel si nécessaire)
+      - name: 🔄 Restaurer le workspace
         uses: actions/download-artifact@v4
         with:
           name: workspace
@@ -102,7 +89,7 @@ jobs:
             docker swarm init || true
           fi
 
-      - name: 🗑️ Vérifier et Nettoyer les services existants
+      - name: 🗑️ Nettoyer les services
         run: |
           docker stack ls
           for service in suricata wazuh elk opencti; do
@@ -123,31 +110,28 @@ jobs:
     outputs:
       test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
-      - name: 📥 Récupérer les logs du déploiement
+      - name: 📥 Récupérer les logs
         uses: actions/download-artifact@v4
         with:
           name: deploy_logs
           path: .
 
       - name: 🚨 Vérifier les erreurs
+        id: detect_failure
         run: |
-          echo "TEST_FAILED=false" >> $GITHUB_ENV
+          TEST_FAILED=false
           
-          # Vérifier les logs individuels des services
+          # Vérifier les logs des services
           for service in suricata wazuh elk opencti; do
             log_file="logs_$service.txt"
-            if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot" "$log_file") ]]; then
+            if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot\|swarm manager" "$log_file") ]]; then
               echo "⚠️ Erreur détectée dans $log_file"
-              echo "TEST_FAILED=true" >> $GITHUB_ENV
+              TEST_FAILED=true
               break
             fi
           done
 
-          # Vérifier le log global du déploiement
-          if grep -i "error\|failed\|cannot\|swarm manager" deploy_errors.log; then
-            echo "🚨 Erreur trouvée dans deploy_errors.log"
-            echo "TEST_FAILED=true" >> $GITHUB_ENV
-          fi
+          echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
 
   ###########################
   #   GESTION DES BRANCHES  #
@@ -163,7 +147,7 @@ jobs:
           name: workspace
           path: .
 
-      - name: 🚀 Vérifier que `.git/` est bien restauré
+      - name: 🚀 Vérifier `.git/`
         run: ls -la .git || echo "⚠️ Le dossier .git est manquant"
 
       - name: 🏷️ Déterminer la branche cible
@@ -176,60 +160,20 @@ jobs:
           fi
 
       - name: 📝 Générer le fichier de logs
-        if: needs.check_errors.outputs.test_failed == 'true'
         run: |
-          echo "═══════════════════════════════════════" > error-log.txt
-          echo "              🛠️ LOG DU PIPELINE 🛠️              " >> error-log.txt
-          echo "═══════════════════════════════════════" >> error-log.txt
-          echo "📅 Date : $(date)" >> error-log.txt
-          echo "═══════════════════════════════════════" >> error-log.txt
-
-          echo "ℹ️  Docker Info :" >> error-log.txt
+          echo "📅 Date : $(date)" > error-log.txt
           docker info >> error-log.txt 2>&1
-          
-          echo "───────────────────────────────────────" >> error-log.txt
-          echo "ℹ️  Docker Version :" >> error-log.txt
-          docker version >> error-log.txt 2>&1
-
-          echo "───────────────────────────────────────" >> error-log.txt
-          echo "ℹ️  Liste des Stacks Docker :" >> error-log.txt
           docker stack ls >> error-log.txt 2>&1
-
-          echo "───────────────────────────────────────" >> error-log.txt
-          echo "ℹ️  Liste des Services Swarm :" >> error-log.txt
           docker service ls >> error-log.txt 2>&1
-
-          echo "───────────────────────────────────────" >> error-log.txt
-          echo "ℹ️  Liste des Conteneurs en cours d'exécution :" >> error-log.txt
           docker ps -a >> error-log.txt 2>&1
-
-          echo "═══════════════════════════════════════" >> error-log.txt
-          echo "❌ Logs détaillés des services échoués :" >> error-log.txt
-          echo "═══════════════════════════════════════" >> error-log.txt
 
           for service in suricata wazuh elk opencti; do
             log_file="logs_$service.txt"
             if [[ -f "$log_file" ]]; then
-              echo "───────────────────────────────────────" >> error-log.txt
               echo "❌ ERREUR DE DÉPLOIEMENT POUR $service :" >> error-log.txt
-              echo "───────────────────────────────────────" >> error-log.txt
               cat "$log_file" >> error-log.txt
             fi
           done
-
-          for service in suricata wazuh elk opencti; do
-            if docker stack ps $service 2>/dev/null | grep -q "Failed\|Rejected\|Shutdown\|Complete"; then
-              echo "───────────────────────────────────────" >> error-log.txt
-              echo "🔍 Logs pour service: $service" >> error-log.txt
-              docker service logs $service >> error-log.txt 2>&1
-            else
-              echo "⚠️ Service $service non actif ou introuvable, impossible de récupérer les logs." >> error-log.txt
-            fi
-          done
-
-          echo "═══════════════════════════════════════" >> error-log.txt
-          echo "📌 FIN DU LOG" >> error-log.txt
-          echo "═══════════════════════════════════════" >> error-log.txt
 
           git add error-log.txt
 
@@ -240,6 +184,8 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "github-actions@github.com"
 
-          git checkout -b ${{ env.BRANCH }}
+          git fetch origin
+          git checkout -b ${{ env.BRANCH }} || git checkout ${{ env.BRANCH }}
+
           git commit -m "Mise à jour automatique via GitHub Actions" || echo "Aucune modification à commit"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.BRANCH }} --force
