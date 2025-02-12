@@ -109,14 +109,16 @@ jobs:
         fi
 
     - name: 🚀 Créer et Pousser la branche
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         git config --global user.name "GitHub Actions"
         git config --global user.email "github-actions@github.com"
-      
+  
         git checkout -b ${{ env.BRANCH }}
-
+  
         echo "Erreur détectée dans le pipeline à $(date)" >> error-log.txt
         git add error-log.txt
-
+  
         git commit -m "Mise à jour automatique via GitHub Actions [ERREUR]"
-        git push origin ${{ env.BRANCH }} --force || echo "PUSH_FAILED=true" >> $GITHUB_ENV
+        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.BRANCH }} --force
