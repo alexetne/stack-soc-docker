@@ -30,13 +30,15 @@ jobs:
             fi
           done
 
-      - name: 💾 Sauvegarder le workspace pour les prochains jobs
+      - name: 💾 Sauvegarder le workspace (avec `.git/`)
         uses: actions/upload-artifact@v4
         with:
           name: workspace
-          path: .
-          retention-days: 1  # Garde les fichiers pendant 1 jour (ajustable)
-          compression-level: 6  # Niveau de compression pour économiser de l'espace
+          path: |
+            .
+            .git/
+          retention-days: 1
+          compression-level: 6
 
   ###########################
   #      DÉPLOIEMENT        #
@@ -118,6 +120,9 @@ jobs:
         with:
           name: workspace
           path: .
+
+      - name: 🚀 Vérifier que `.git/` est bien restauré
+        run: ls -la .git || echo "⚠️ Le dossier .git est manquant"
 
       - name: 🏷️ Déterminer la branche cible
         run: |
