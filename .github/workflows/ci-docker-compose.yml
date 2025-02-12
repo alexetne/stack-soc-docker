@@ -93,10 +93,16 @@ jobs:
             docker swarm init || true
           fi
 
-      - name: 🗑️ Nettoyer les services
+      - name: 🗑️ Vérifier et Nettoyer les services existants
         run: |
+          docker stack ls
           for service in suricata wazuh elk opencti; do
-            docker stack rm $service || true
+            if docker stack ls | grep -q "$service"; then
+              echo "🗑️ Suppression de la stack $service..."
+              docker stack rm $service || true
+            else
+              echo "⚠️ Stack $service introuvable, rien à supprimer."
+            fi
           done
 
   ###########################
