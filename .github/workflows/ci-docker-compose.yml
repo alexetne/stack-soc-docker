@@ -20,47 +20,56 @@ jobs:
       run: |
         docker swarm init || true
 
-    # Test des services Suricata
+    ###########################
+    #        SURICATA         #
+    ###########################
     - name: 🛡️ Lancer les services Suricata
       run: |
         docker stack deploy -c Suricata/docker-compose.yml suricata || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
-    - name: ✅ Vérifier l'état de Suricata
-      run: |
-        docker service ls
-        docker service ps suricata || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    # - name: ✅ Vérifier l'état de Suricata
+    #   run: |
+    #     docker service ls
+    #     docker service ps suricata || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
-    # Test des services Wazuh
+    ###########################
+    #         WAZUH          #
+    ###########################
     - name: 📊 Lancer les services Wazuh
       run: |
         docker stack deploy -c wazuh/docker-compose.yml wazuh || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
-    - name: ✅ Vérifier l'état de Wazuh
-      run: |
-        docker service ls
-        curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
-        curl -f http://localhost:55000 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    # - name: ✅ Vérifier l'état de Wazuh
+    #   run: |
+    #     docker service ls
+    #     curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    #     curl -f http://localhost:55000 || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
-    # Test des services ELK
+    ###########################
+    #          ELK           #
+    ###########################
     - name: 📈 Lancer les services ELK
       run: |
         docker stack deploy -c ELK/docker-compose.yml elk || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
-    - name: ✅ Vérifier l'état de ELK
-      run: |
-        docker service ls
-        curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
-        curl -f http://localhost:9200 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    # - name: ✅ Vérifier l'état de ELK
+    #   run: |
+    #     docker service ls
+    #     curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    #     curl -f http://localhost:9200 || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
-    # Test des services OpenCTI
+    ###########################
+    #        OPENCTI         #
+    ###########################
     - name: 🔍 Lancer les services OpenCTI
       run: |
         docker stack deploy -c opencti/docker-compose.yml opencti || echo "TEST_FAILED=true" >> $GITHUB_ENV
 
-    - name: ✅ Vérifier l'état de OpenCTI
-      run: |
-        docker service ls
-        curl -f http://localhost:8080 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+    # - name: ✅ Vérifier l'état de OpenCTI
+    #   run: |
+    #     docker service ls
+    #     curl -f http://localhost:8080 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+
 
     - name: ✅ Vérifier l'état global des services
       id: tests
@@ -70,7 +79,10 @@ jobs:
         curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
         curl -f http://localhost:9200 || echo "TEST_FAILED=true" >> $GITHUB_ENV
         curl -f http://localhost:8080 || echo "TEST_FAILED=true" >> $GITHUB_ENV
-
+    
+    ###########################
+    #       NETTOYAGE        #
+    ###########################
     - name: 🗑️ Nettoyer les services
       run: |
         docker stack rm suricata || true
@@ -78,6 +90,9 @@ jobs:
         docker stack rm elk || true
         docker stack rm opencti || true
 
+    ###########################
+    #   GESTION DES BRANCHES  #
+    ###########################
     - name: 🏷️ Déterminer la branche cible
       id: branch_target
       run: |
