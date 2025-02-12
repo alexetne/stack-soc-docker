@@ -22,9 +22,9 @@ jobs:
     
     - name: 🔎 Vérifier l'existence des fichiers
       run: |
-        ls -l Suricata/docker-compose.yml || exit 1
+        ls -l Suricata/Docker-compose.yml || exit 1
         ls -l wazuh/docker-compose.yml || exit 1
-        ls -l ELK/docker-compose.yml || exit 1
+        ls -l ELK/Docker-compose.yml || exit 1
         ls -l opencti/docker-compose.yml || exit 1
 
     ###########################
