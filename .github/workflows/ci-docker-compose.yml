@@ -1,118 +1,172 @@
-name: Docker Compose CI
+name: Docker Swarm CI
 
 on:
   push:
-    branches:
+    branches-ignore:
       - main
   pull_request:
     branches:
       - main
 
 jobs:
-  test:
+  ###########################
+  #      CONFIGURATION      #
+  ###########################
+  setup:
     runs-on: ubuntu-latest
-
     steps:
-    - name: 📥 Cloner le dépôt
-      uses: actions/checkout@v3
+      - name: 📥 Cloner le dépôt
+        uses: actions/checkout@v4
 
-    - name: ⚙️ Configurer Docker et Swarm
-      run: |
-        docker swarm init || true
+      - name: ⚙️ Configurer Docker et Swarm
+        run: docker swarm init || true
 
-    ###########################
-    #        SURICATA         #
-    ###########################
-    - name: 🛡️ Lancer les services Suricata
-      run: |
-        docker stack deploy -c Suricata/docker-compose.yml suricata || echo "TEST_FAILED=true" >> $GITHUB_ENV
+      - name: 🔎 Vérifier l'existence des fichiers Docker Compose
+        run: |
+          for service in suricata wazuh elk opencti; do
+            if [[ ! -f "$service/docker-compose.yml" ]]; then
+              echo "❌ Fichier manquant : $service/docker-compose.yml"
+              exit 1
+            fi
+          done
 
-    # - name: ✅ Vérifier l'état de Suricata
-    #   run: |
-    #     docker service ls
-    #     docker service ps suricata || echo "TEST_FAILED=true" >> $GITHUB_ENV
+      - name: 💾 Sauvegarder le workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace
+          path: |
+            .
+            .git/
+          retention-days: 1
 
-    ###########################
-    #         WAZUH          #
-    ###########################
-    - name: 📊 Lancer les services Wazuh
-      run: |
-        docker stack deploy -c wazuh/docker-compose.yml wazuh || echo "TEST_FAILED=true" >> $GITHUB_ENV
+  ###########################
+  #      DÉPLOIEMENT        #
+  ###########################
+  deploy:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [suricata, wazuh, elk, opencti]
+    steps:
+      - name: 🔄 Restaurer le workspace
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: .
 
-    # - name: ✅ Vérifier l'état de Wazuh
-    #   run: |
-    #     docker service ls
-    #     curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
-    #     curl -f http://localhost:55000 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+      - name: 🚀 Déployer ${{ matrix.service }}
+        run: |
+          echo "🔄 Déploiement de ${{ matrix.service }}..."
+          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
+          sleep 10
+  
+      - name: 📦 Stocker les logs de ${{ matrix.service }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs_${{ matrix.service }}
+          path: logs_${{ matrix.service }}.txt
 
-    ###########################
-    #          ELK           #
-    ###########################
-    - name: 📈 Lancer les services ELK
-      run: |
-        docker stack deploy -c ELK/docker-compose.yml elk || echo "TEST_FAILED=true" >> $GITHUB_ENV
+  ###########################
+  #  DÉTECTION DES ERREURS  #
+  ###########################
+  check_errors:
+    needs: deploy
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [suricata, wazuh, elk, opencti]
+    outputs:
+      test_failed: ${{ steps.detect_failure.outputs.test_failed }}
+    steps:
+      - name: 📥 Récupérer les logs de ${{ matrix.service }}
+        uses: actions/download-artifact@v4
+        with:
+          name: logs_${{ matrix.service }}
+          path: .
 
-    # - name: ✅ Vérifier l'état de ELK
-    #   run: |
-    #     docker service ls
-    #     curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
-    #     curl -f http://localhost:9200 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+      - name: 🔍 Vérifier les erreurs dans logs_${{ matrix.service }}.txt
+        id: detect_failure
+        run: |
+          TEST_FAILED=false
+          log_file="logs_${{ matrix.service }}.txt"
+          
+          if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot\|swarm manager" "$log_file") ]]; then
+            echo "⚠️ Erreur détectée dans $log_file"
+            TEST_FAILED=true
+          fi
 
-    ###########################
-    #        OPENCTI         #
-    ###########################
-    - name: 🔍 Lancer les services OpenCTI
-      run: |
-        docker stack deploy -c opencti/docker-compose.yml opencti || echo "TEST_FAILED=true" >> $GITHUB_ENV
+          echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
 
-    # - name: ✅ Vérifier l'état de OpenCTI
-    #   run: |
-    #     docker service ls
-    #     curl -f http://localhost:8080 || echo "TEST_FAILED=true" >> $GITHUB_ENV
+  ###########################
+  #   GESTION DES LOGS      #
+  ###########################
+  push_logs:
+    needs: check_errors
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Restaurer le workspace
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: .
 
+      - name: 🚀 Vérifier `.git/`
+        run: |
+          if [ ! -d ".git" ]; then
+            echo "⚠️ Le dossier .git est manquant, reclonage en cours..."
+            rm -rf ./*
+            git clone https://github.com/${{ github.repository }}.git .
+          fi
 
-    - name: ✅ Vérifier l'état global des services
-      id: tests
-      run: |
-        set -e
-        docker service ls
-        curl -f http://localhost:5601 || echo "TEST_FAILED=true" >> $GITHUB_ENV
-        curl -f http://localhost:9200 || echo "TEST_FAILED=true" >> $GITHUB_ENV
-        curl -f http://localhost:8080 || echo "TEST_FAILED=true" >> $GITHUB_ENV
-    
-    ###########################
-    #       NETTOYAGE        #
-    ###########################
-    - name: 🗑️ Nettoyer les services
-      run: |
-        docker stack rm suricata || true
-        docker stack rm wazuh || true
-        docker stack rm elk || true
-        docker stack rm opencti || true
+      - name: 📥 Télécharger tous les logs
+        uses: actions/download-artifact@v4
+        with:
+          path: logs/
 
-    ###########################
-    #   GESTION DES BRANCHES  #
-    ###########################
-    - name: 🏷️ Déterminer la branche cible
-      id: branch_target
-      run: |
-        echo "TEST_FAILED=${{ env.TEST_FAILED }}"  # Debug pour voir si la variable est bien définie
-        if [[ "${{ env.TEST_FAILED }}" == "true" ]]; then
-          TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
-          echo "BRANCH=erreur-$TIMESTAMP" >> $GITHUB_ENV
-        else
-          echo "BRANCH=develop" >> $GITHUB_ENV
-        fi
+      - name: 📝 Vérifier et générer un fichier de logs consolidé
+        run: |
+          LOGS_FOUND=false
+          echo "📅 Date : $(date)" > error-log.txt
+          
+          for service in suricata wazuh elk opencti; do
+            log_file="logs/logs_$service/logs_$service.txt"
+            
+            if [[ -f "$log_file" ]]; then
+              LOGS_FOUND=true
+              echo "❌ ERREUR DE DÉPLOIEMENT POUR $service :" >> error-log.txt
+              cat "$log_file" >> error-log.txt
+            else
+              echo "✅ Aucun log trouvé pour $service." >> error-log.txt
+            fi
+          done
 
-    - name: 🚀 Créer et Pousser la branche
-      run: |
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "github-actions@github.com"
-      
-        git checkout -b ${{ env.BRANCH }}
+          if [[ "$LOGS_FOUND" == "true" ]]; then
+            echo "ERROR_LOGS=true" >> $GITHUB_ENV
+            git add error-log.txt
+          else
+            echo "ERROR_LOGS=false" >> $GITHUB_ENV
+          fi
 
-        echo "Erreur détectée dans le pipeline à $(date)" >> error-log.txt
-        git add error-log.txt
+      - name: 🚀 Déterminer la branche cible et Pousser les logs
+        if: env.ERROR_LOGS == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@github.com"
 
-        git commit -m "Mise à jour automatique via GitHub Actions [ERREUR]"
-        git push origin ${{ env.BRANCH }} --force || echo "PUSH_FAILED=true" >> $GITHUB_ENV
+          TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
+          BRANCH="erreur-$TIMESTAMP"
+
+          git checkout -b $BRANCH || git checkout $BRANCH
+
+          git commit -m "Ajout des logs d'erreur via GitHub Actions" || echo "Aucune modification à commit"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $BRANCH --force
+
+      - name: 🔀 Créer une Pull Request vers `develop` si aucun log d'erreur n'est trouvé
+        if: env.ERROR_LOGS == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create --base develop --head ${{ github.ref_name }} --title "Merge successful deployment" --body "Tous les services se sont déployés correctement. PR automatique vers develop."
