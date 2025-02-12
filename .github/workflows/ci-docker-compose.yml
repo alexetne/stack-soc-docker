@@ -18,14 +18,18 @@ jobs:
       - name: 📥 Cloner le dépôt
         uses: actions/checkout@v4
 
-      - name: ⚙️ Configurer Docker et Swarm
-        run: docker swarm init || true
+      - name: ⚙️ Vérifier et Initialiser Docker Swarm
+        run: |
+          if ! docker info | grep -q "Swarm: active"; then
+            echo "⚠️ Swarm n'est pas actif, initialisation..."
+            docker swarm init || true
+          fi
 
-      - name: 🔎 Vérifier l'existence des fichiers Docker Compose
+      - name: 🔎 Vérifier les fichiers Docker Compose
         run: |
           for service in suricata wazuh elk opencti; do
             if [[ ! -f "$service/docker-compose.yml" ]]; then
-              echo "❌ Fichier manquant : $service/docker-compose.yml"
+              echo "❌ Fichier $service/docker-compose.yml introuvable."
               exit 1
             fi
           done
@@ -58,7 +62,7 @@ jobs:
           
           for service in suricata wazuh elk opencti; do
             echo "🔄 Déploiement de $service..." | tee -a deploy_errors.log
-            docker stack deploy -c $service/docker-compose.yml $service 2>&1 | tee -a logs_$service.txt deploy_errors.log || echo "${service^^}_FAILED=true" >> $GITHUB_ENV
+            docker stack deploy -c $service/docker-compose.yml $service 2>&1 | tee logs_$service.txt deploy_errors.log || echo "${service^^}_FAILED=true" >> $GITHUB_ENV
             sleep 10
           done
   
@@ -82,23 +86,10 @@ jobs:
           name: workspace
           path: .
 
-      - name: 🗑️ Vérifier et Initialiser Swarm si nécessaire
-        run: |
-          if ! docker info | grep -q "Swarm: active"; then
-            echo "⚠️ Swarm n'est pas actif, initialisation en cours..."
-            docker swarm init || true
-          fi
-
       - name: 🗑️ Nettoyer les services
         run: |
-          docker stack ls
           for service in suricata wazuh elk opencti; do
-            if docker stack ls | grep -q "$service"; then
-              echo "🗑️ Suppression de la stack $service..."
-              docker stack rm $service || true
-            else
-              echo "⚠️ Stack $service introuvable, rien à supprimer."
-            fi
+            docker stack rm $service || true
           done
 
   ###########################
@@ -116,12 +107,10 @@ jobs:
           name: deploy_logs
           path: .
 
-      - name: 🔍 Vérifier le contenu du fichier `deploy_errors.log`
-        run: |
-          echo "📂 Contenu du fichier deploy_errors.log :"
-          cat deploy_errors.log || echo "⚠️ Le fichier deploy_errors.log est vide ou introuvable."
+      - name: 🔍 Vérifier `deploy_errors.log`
+        run: cat deploy_errors.log || echo "⚠️ Le fichier deploy_errors.log est vide."
 
-      - name: 🚨 Vérifier les erreurs
+      - name: 🚨 Détecter les erreurs
         id: detect_failure
         run: |
           TEST_FAILED=false
@@ -142,6 +131,7 @@ jobs:
 
           echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
 
+
   ###########################
   #   GESTION DES BRANCHES  #
   ###########################
@@ -153,7 +143,7 @@ jobs:
       - name: 🔄 Restaurer le workspace
         uses: actions/download-artifact@v4
         with:
-          name: deploy_logs
+          name: workspace
           path: .
 
       - name: 🚀 Vérifier `.git/`
@@ -179,11 +169,9 @@ jobs:
           for service in suricata wazuh elk opencti; do
             log_file="logs_$service.txt"
   
-            if [[ -f "$log_file" && -s "$log_file" ]]; then
+            if [[ -f "$log_file" ]]; then
               echo "❌ ERREUR DE DÉPLOIEMENT POUR $service :" >> error-log.txt
               cat "$log_file" >> error-log.txt
-            elif [[ -f "$log_file" ]]; then
-              echo "⚠️ Le fichier log pour $service existe mais est vide." >> error-log.txt
             else
               echo "⚠️ Aucun log trouvé pour $service, peut-être un échec de création ?" >> error-log.txt
             fi
