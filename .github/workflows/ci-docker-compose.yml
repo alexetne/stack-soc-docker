@@ -91,8 +91,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: env_file
-          path: /home/runner/work/stack-soc-docker/stack-soc-docker/elk/
-          
+          path: elk/
+
+      - name: 🛠 Vérifier `.env` après la récupération
+        run: ls -la elk/
+        
       - name: 🕵️ Vérifier `.env` après la récupération
         run: |
           ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/elk/
