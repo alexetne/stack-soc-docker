@@ -111,7 +111,7 @@ jobs:
           echo "ES_MEM_LIMIT=${ES_MEM_LIMIT}"
           echo "KB_MEM_LIMIT=${KB_MEM_LIMIT}"
     
-          docker stack deploy --compose-file elk/docker-compose.yml --env-file elk/env_file ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
+          docker stack deploy -c elk/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
 
       - name: 📦 Stocker les logs de ${{ matrix.service }}
