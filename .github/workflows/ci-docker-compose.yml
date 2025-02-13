@@ -59,6 +59,7 @@ jobs:
         with:
           name: env-file
           path: elk/envfile
+          if-no-files-found : error
 
       - name: 💾 Sauvegarder le workspace
         uses: actions/upload-artifact@v4
