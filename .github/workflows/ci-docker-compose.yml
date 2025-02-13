@@ -82,10 +82,22 @@ jobs:
   deploy:
     needs: setup
     runs-on: ubuntu-latest
+    services:
+      docker:
+        image: docker:dind
+        options: --privileged
     strategy:
       matrix:
         service: [elk]
     steps:
+      - name: ⚙️ Vérifier et configurer Docker Swarm dans deploy
+        run: |
+          docker info | grep -i swarm
+          if [ $? -ne 0 ]; then
+            echo "Initialisation de Docker Swarm..."
+          docker swarm init || true
+          fi
+  
       - name: 🔄 Restaurer le workspace
         uses: actions/download-artifact@v4
         with:
