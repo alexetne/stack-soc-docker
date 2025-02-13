@@ -50,13 +50,15 @@ jobs:
           ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/elk/.env
         
         
+      - name: 📂 Copier `.env` sous un autre nom
+        run: |
+          cp elk/.env elk/envfile
+        
       - name: 💾 Sauvegarder `.env`
         uses: actions/upload-artifact@v4
         with:
-          name: env_file
-          path: /home/runner/work/stack-soc-docker/stack-soc-docker/elk/.env
-
-          if-no-files-found: error
+          name: env-file
+          path: elk/envfile
 
       - name: 💾 Sauvegarder le workspace
         uses: actions/upload-artifact@v4
