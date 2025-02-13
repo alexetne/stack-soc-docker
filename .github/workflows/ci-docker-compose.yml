@@ -46,11 +46,8 @@ jobs:
           path: |
             .
             .git/
-            .env
+            elk/.env
           retention-days: 1
-
-# Le reste de votre workflow reste inchangé
-
 
   ###########################
   #      DÉPLOIEMENT        #
