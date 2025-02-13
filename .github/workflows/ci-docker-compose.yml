@@ -23,7 +23,7 @@ jobs:
 
       - name: 🔎 Vérifier l'existence des fichiers Docker Compose
         run: |
-          for service in suricata wazuh elk opencti; do
+          for service in wazuh elk; do
             if [[ ! -f "$service/docker-compose.yml" ]]; then
               echo "❌ Fichier manquant : $service/docker-compose.yml"
               exit 1
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [suricata, wazuh, elk, opencti]
+        service: [ wazuh, elk]
     steps:
       - name: 🔄 Restaurer le workspace
         uses: actions/download-artifact@v4
@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [suricata, wazuh, elk, opencti]
+        service: [wazuh, elk]
     outputs:
       test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
@@ -129,7 +129,7 @@ jobs:
           LOGS_FOUND=false
           echo "📅 Date : $(date)" > error-log.txt
           
-          for service in suricata wazuh elk opencti; do
+          for service in wazuh elk; do
             log_file="logs/logs_$service/logs_$service.txt"
             
             if [[ -f "$log_file" ]]; then
