@@ -60,9 +60,9 @@ jobs:
         run: |
           echo "🔄 Déploiement de ${{ matrix.service }}..."
           
-          if [ -f .env ]; then
+          if [ -f ${{ matrix.service }}/.env ]; then
             echo "✅ Fichier .env trouvé. Contenu:"
-            cat .env
+            cat ${{ matrix.service }}/.env
           else
             echo "❌ Fichier .env non trouvé"
             exit 1
