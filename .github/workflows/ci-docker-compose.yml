@@ -59,7 +59,7 @@ jobs:
       - name: 🚀 Déployer ${{ matrix.service }}
         run: |
           echo "🔄 Déploiement de ${{ matrix.service }}..."
-          export $(grep -v '^#' ../elk/.env | xargs) && \
+          export $(grep -v '^#' ./elk/.env | xargs) && \
           docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
 
