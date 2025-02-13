@@ -22,7 +22,7 @@ jobs:
         run: |
           if [ -f elk/.env ]; then
             echo "Chargement des variables depuis elk/.env"
-            cat elk/.env >> $GITHUB_ENV
+            grep -v '^#' elk/.env | grep -v '^$' >> $GITHUB_ENV
           else
             echo "❌ Fichier .env manquant dans elk"
             exit 1
