@@ -37,6 +37,14 @@ jobs:
       
       - name: 🕵️ Vérifier le chemin du `.env`
         run: find $GITHUB_WORKSPACE -name ".env"
+
+      - name: 📂 Vérifier la présence du `.env`
+        run: |
+          echo "📂 Contenu du dossier elk :"
+          ls -la elk/
+          echo "📂 Contenu du répertoire courant :"
+          ls -la
+      
         
       - name: 💾 Sauvegarder `.env`
         uses: actions/upload-artifact@v4
