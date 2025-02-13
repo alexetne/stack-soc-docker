@@ -35,12 +35,12 @@ jobs:
           ls -la elk/
           cat elk/.env || echo "❌ Fichier .env introuvable !"
 
-          - name: 💾 Sauvegarder `.env`
-          uses: actions/upload-artifact@v4
-          with:
-            name: env_file
-            path: elk/.env
-            retention-days: 1        
+      - name: 💾 Sauvegarder `.env`
+        uses: actions/upload-artifact@v4
+        with:
+          name: env_file
+          path: elk/.env
+          retention-days: 1        
 
       - name: 💾 Sauvegarder le workspace
         uses: actions/upload-artifact@v4
