@@ -37,6 +37,7 @@ jobs:
           path: |
             .
             .git/
+            .elk/.env
           retention-days: 1
 
   ###########################

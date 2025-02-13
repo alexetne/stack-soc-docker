@@ -22,8 +22,6 @@ networks:
 services:
   setup:
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
-    env_file:
-      - .env
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
     user: "0"
@@ -82,8 +80,6 @@ services:
     depends_on:
       - setup
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
-    env_file:
-      - .env
     labels:
       co.elastic.logs/module: elasticsearch
     volumes:
@@ -130,8 +126,6 @@ services:
     depends_on:
       - es01
     image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
-    env_file:
-      - .env
     labels:
       co.elastic.logs/module: kibana
     volumes:
@@ -169,8 +163,6 @@ services:
       - es01
       - kibana
     image: docker.elastic.co/beats/metricbeat:${STACK_VERSION}
-    env_file:
-      - .env
     user: root
     volumes:
       - certs:/usr/share/metricbeat/certs
@@ -192,8 +184,6 @@ services:
     depends_on:
       - es01
     image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
-    env_file:
-      - .env
     user: root
     volumes:
       - certs:/usr/share/filebeat/certs
@@ -214,8 +204,6 @@ services:
       - es01
       - kibana
     image: docker.elastic.co/logstash/logstash:${STACK_VERSION}
-    env_file:
-      - .env
     labels:
       co.elastic.logs/module: logstash
     user: root
