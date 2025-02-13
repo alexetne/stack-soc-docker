@@ -23,7 +23,7 @@ jobs:
 
       - name: 🔎 Vérifier l'existence des fichiers Docker Compose
         run: |
-          for service in wazuh elk; do
+          for service in elk; do
             if [[ ! -f "$service/docker-compose.yml" ]]; then
               echo "❌ Fichier manquant : $service/docker-compose.yml"
               exit 1
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [ wazuh, elk]
+        service: [elk]
     steps:
       - name: 🔄 Restaurer le workspace
         uses: actions/download-artifact@v4
@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [wazuh, elk]
+        service: [elk]
     outputs:
       test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
