@@ -60,7 +60,13 @@ jobs:
           echo "🔄 Déploiement de ${{ matrix.service }}..."
           docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
-  
+
+      - name : DEBUG VARIABLES
+        run: |
+          echo "ES_MEM_LIMIT=${ES_MEM_LIMIT}"
+          echo "KB_MEM_LIMIT=${KB_MEM_LIMIT}"
+
+
       - name: 📦 Stocker les logs de ${{ matrix.service }}
         uses: actions/upload-artifact@v4
         with:
