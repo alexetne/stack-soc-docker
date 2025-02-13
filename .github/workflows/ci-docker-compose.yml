@@ -59,7 +59,18 @@ jobs:
       - name: 🚀 Déployer ${{ matrix.service }}
         run: |
           echo "🔄 Déploiement de ${{ matrix.service }}..."
-          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml --env-file .env ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
+          
+          if [ -f .env ]; then
+            echo "✅ Fichier .env trouvé. Contenu:"
+            cat .env
+          else
+            echo "❌ Fichier .env non trouvé"
+            exit 1
+          fi
+
+          cp .env ${{ matrix.service }}/.env
+          
+          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
 
       - name: 📦 Stocker les logs de ${{ matrix.service }}
