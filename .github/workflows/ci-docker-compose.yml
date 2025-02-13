@@ -75,8 +75,8 @@ jobs:
 
       - name : DEBUG VARIABLES
         run: |
-          echo "ES_MEM_LIMIT=${ES_MEM_LIMIT}"
-          echo "KB_MEM_LIMIT=${KB_MEM_LIMIT}"
+          echo "ES_MEM_LIMIT=${{ secrets.ES_MEM_LIMIT }}"
+          echo "KB_MEM_LIMIT=${{ secrets.KB_MEM_LIMIT }}"
 
 
       - name: 📦 Stocker les logs de ${{ matrix.service }}
