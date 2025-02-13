@@ -45,12 +45,17 @@ jobs:
           echo "📂 Contenu du répertoire courant :"
           ls -la
       
+      - name: 📂 Vérifier `.env` avant upload
+        run: |
+          ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/elk/.env
+        
         
       - name: 💾 Sauvegarder `.env`
         uses: actions/upload-artifact@v4
         with:
           name: env_file
-          path: elk/.env
+          path: /home/runner/work/stack-soc-docker/stack-soc-docker/elk/.env
+
           if-no-files-found: error
 
       - name: 💾 Sauvegarder le workspace
