@@ -18,6 +18,15 @@ jobs:
       - name: 📥 Cloner le dépôt
         uses: actions/checkout@v4
 
+      - name: 🛠️ Copier le fichier .env du dossier elk
+        run: |
+          if [ -f elk/.env ]; then
+            cp elk/.env .env
+          else
+            echo "❌ Fichier .env manquant dans elk"
+            exit 1
+          fi
+
       - name: ⚙️ Configurer Docker et Swarm
         run: docker swarm init || true
 
@@ -37,8 +46,11 @@ jobs:
           path: |
             .
             .git/
-            .elk/.env
+            .env
           retention-days: 1
+
+# Le reste de votre workflow reste inchangé
+
 
   ###########################
   #      DÉPLOIEMENT        #
