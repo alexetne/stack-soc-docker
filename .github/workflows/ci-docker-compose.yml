@@ -18,18 +18,6 @@ jobs:
       - name: 📥 Cloner le dépôt
         uses: actions/checkout@v4
 
-      - name: 🛠️ Charger les variables d'environnement
-        run: |
-          if [ -f elk/.env ]; then
-            echo "Chargement des variables depuis elk/.env"
-            set -a
-            source elk/.env
-            set +a
-          else
-            echo "❌ Fichier .env manquant dans elk"
-            exit 1
-          fi
-
       - name: ⚙️ Configurer Docker et Swarm
         run: docker swarm init || true
 
@@ -49,7 +37,6 @@ jobs:
           path: |
             .
             .git/
-            elk/.env
           retention-days: 1
 
   ###########################
@@ -68,12 +55,11 @@ jobs:
           name: workspace
           path: |
             .
-            elk/.env
 
       - name: 🚀 Déployer ${{ matrix.service }}
         run: |
           echo "🔄 Déploiement de ${{ matrix.service }}..."
-          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
+          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml --env-file .env ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
 
       - name: 📦 Stocker les logs de ${{ matrix.service }}
