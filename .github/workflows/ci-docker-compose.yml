@@ -7,10 +7,7 @@ on:
   pull_request:
     branches:
       - main
-      
-      ###########################
-      #      CONFIGURATION      #
-      ###########################
+
 jobs:
   setup:
     runs-on: ubuntu-latest
@@ -19,154 +16,67 @@ jobs:
         uses: actions/checkout@v4
 
       - name: ⚙️ Configurer Docker Swarm
-        run: docker swarm init || echo "Swarm déjà initialisé ou erreur ignorée"
-      
-      - name: ⚙️ Vérifier si Docker Swarm est bien actif
-        run: docker info | grep -i swarm
-      
+        run: docker swarm init || true
 
-      - name: 🔎 Vérifier l'existence des fichiers Docker Compose
-        run: |
-          for service in elk; do
-            if [[ ! -f "$service/docker-compose.yml" ]]; then
-              echo "❌ Fichier manquant : $service/docker-compose.yml"
-              exit 1
-            fi
-          done
-      
       - name: 🕵️ Vérification de l'existence du fichier .env
-        run: |
-          ls -la elk/
-          cat elk/.env || echo "❌ Fichier .env introuvable !"
-      
-      - name: 🕵️ Vérifier le chemin du `.env`
-        run: find $GITHUB_WORKSPACE -name ".env"
-
-      - name: 📂 Vérifier la présence du `.env`
-        run: |
-          echo "📂 Contenu du dossier elk :"
-          ls -la elk/
-          echo "📂 Contenu du répertoire courant :"
-          ls -la
-      
-      - name: 📂 Vérifier `.env` avant upload
-        run: |
-          ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/elk/.env
-        
-        
-      - name: 📂 Copier `.env` sous un autre nom avant upload
         run: cp elk/.env elk/env_file
-    
+
       - name: 💾 Sauvegarder `.env`
         uses: actions/upload-artifact@v4
         with:
           name: env_file
           path: elk/env_file
-          if-no-files-found : warn
 
       - name: 💾 Sauvegarder le workspace
         uses: actions/upload-artifact@v4
         with:
           name: workspace
-          path: |
-            .
-            .git/
-          retention-days: 1
+          path: .
 
-      - name: 🛠 Vérifier les artefacts après upload
-        run: ls -la $GITHUB_WORKSPACE
-        
-  ###########################
-  #      DÉPLOIEMENT        #
-  ###########################
   deploy:
     needs: setup
     runs-on: ubuntu-latest
-    services:
-      docker:
-        image: docker:dind
-        options: --privileged
-    strategy:
-      matrix:
-        service: [elk]
     steps:
-      - name: ⚙️ Vérifier et configurer Docker Swarm
-        run: |
-          if [ "$(docker info --format '{{.Swarm.LocalNodeState}}')" != "active" ]; then
-            echo "Swarm inactif, initialisation..."
-            docker swarm init || true
-          else
-            echo "Swarm déjà actif."
-          fi
-
       - name: 🔄 Restaurer le workspace
         uses: actions/download-artifact@v4
         with:
           name: workspace
-          path: |
-            .
 
       - name: 🔄 Restaurer `.env`
         uses: actions/download-artifact@v4
         with:
           name: env_file
           path: elk/
-          
-      - name: 🛠 Vérifier `.env` après la récupération
-        run: ls -la elk/
-          
-      - name: 🚀 Déployer ${{ matrix.service }}
-        run: |
-          echo "🔄 Déploiement de ${{ matrix.service }}..."
-    
-          export $(grep -v '^#' elk/env_file | xargs)
-    
-          echo "ES_MEM_LIMIT=${ES_MEM_LIMIT}"
-          echo "KB_MEM_LIMIT=${KB_MEM_LIMIT}"
-    
-          docker stack deploy -c elk/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
-          sleep 10
 
-      - name: 📦 Stocker les logs de ${{ matrix.service }}
+      - name: 🚀 Déployer
+        run: |
+          export $(grep -v '^#' elk/env_file | xargs)
+          docker swarm init || true
+          docker stack deploy -c elk/docker-compose.yml elk 2>&1 | tee logs_elk.txt
+
+      - name: 📦 Stocker les logs
         uses: actions/upload-artifact@v4
         with:
-          name: logs_${{ matrix.service }}
-          path: logs_${{ matrix.service }}.txt
+          name: logs_elk
+          path: logs_elk.txt
 
-  ###########################
-  #  DÉTECTION DES ERREURS  #
-  ###########################
   check_errors:
     needs: deploy
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service: [elk]
-    outputs:
-      test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
-      - name: 📥 Récupérer les logs de ${{ matrix.service }}
+      - name: 📥 Récupérer les logs
         uses: actions/download-artifact@v4
         with:
-          name: logs_${{ matrix.service }}
-          path: .
+          name: logs_elk
 
-      - name: 🔍 Vérifier les erreurs dans logs_${{ matrix.service }}.txt
+      - name: 🔍 Vérifier les erreurs
         id: detect_failure
         run: |
           TEST_FAILED=false
-          log_file="logs_${{ matrix.service }}.txt"
-          
-          if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot\|swarm manager" "$log_file") ]]; then
-            echo "⚠️ Erreur détectée dans $log_file"
-            TEST_FAILED=true
-          fi
-
+          grep -i 'error\|failed\|cannot' logs_elk.txt | grep -vE 'Creating|tasks|Swarm already initialized' > filtered_logs.txt || true
+          if [ -s filtered_logs.txt ]; then TEST_FAILED=true; fi
           echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
 
-  ###########################
-  #   GESTION DES LOGS      #
-  ###########################
   push_logs:
     needs: check_errors
     runs-on: ubuntu-latest
@@ -175,59 +85,24 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: workspace
-          path: .
-
-      - name: 🚀 Vérifier `.git/`
-        run: |
-          if [ ! -d ".git" ]; then
-            echo "⚠️ Le dossier .git est manquant, reclonage en cours..."
-            rm -rf ./*
-            git clone https://github.com/${{ github.repository }}.git .
-          fi
 
       - name: 📥 Télécharger tous les logs
         uses: actions/download-artifact@v4
         with:
           path: logs/
 
-      - name: 📝 Vérifier et générer un fichier de logs consolidé
+      - name: 📝 Générer un fichier de logs
         run: |
-          LOGS_FOUND=false
           echo "📅 Date : $(date)" > error-log.txt
-          
-          for service in wazuh elk; do
-            log_file="logs/logs_$service/logs_$service.txt"
-            
-            if [[ -f "$log_file" ]]; then
-              LOGS_FOUND=true
-              echo "❌ ERREUR DE DÉPLOIEMENT POUR $service :" >> error-log.txt
-              cat "$log_file" >> error-log.txt
-            else
-              echo "✅ Aucun log trouvé pour $service." >> error-log.txt
-            fi
-          done
+          cat logs/logs_elk/logs_elk.txt >> error-log.txt
+          git add error-log.txt
 
-          if [[ "$LOGS_FOUND" == "true" ]]; then
-            echo "ERROR_LOGS=true" >> $GITHUB_ENV
-            git add error-log.txt
-          else
-            echo "ERROR_LOGS=false" >> $GITHUB_ENV
-          fi
-
-      - name: 🚀 Déterminer la branche cible et Pousser les logs
-        if: env.ERROR_LOGS == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 🚀 Pousser les logs si erreur
+        if: needs.check_errors.outputs.test_failed == 'true'
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "github-actions@github.com"
-
-          TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
-          BRANCH="erreur-$TIMESTAMP"
-
-          git checkout -b $BRANCH || git checkout $BRANCH
-
-          git commit -m "Ajout des logs d'erreur via GitHub Actions" || echo "Aucune modification à commit"
+          git commit -m "Ajout des logs d'erreur" || echo "Aucune modification à commit"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $BRANCH --force
 
       - name: 🔀 Créer une Pull Request vers `develop` si aucun log d'erreur n'est trouvé
