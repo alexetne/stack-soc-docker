@@ -42,8 +42,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: env_file
-          path: /home/runner/work/stack-soc-docker/stack-soc-docker/elk/.env
-          if-no-files-found: error 
+          path: elk/.env
+          if-no-files-found: error
 
       - name: 💾 Sauvegarder le workspace
         uses: actions/upload-artifact@v4
