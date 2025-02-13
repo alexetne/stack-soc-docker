@@ -18,10 +18,11 @@ jobs:
       - name: 📥 Cloner le dépôt
         uses: actions/checkout@v4
 
-      - name: 🛠️ Copier le fichier .env du dossier elk
+      - name: 🛠️ Charger les variables d'environnement
         run: |
           if [ -f elk/.env ]; then
-            cp elk/.env .env
+            echo "Chargement des variables depuis elk/.env"
+            cat elk/.env >> $GITHUB_ENV
           else
             echo "❌ Fichier .env manquant dans elk"
             exit 1
@@ -46,7 +47,6 @@ jobs:
           path: |
             .
             .git/
-            elk/.env
           retention-days: 1
 
   ###########################
