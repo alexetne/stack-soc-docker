@@ -42,9 +42,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: env_file
-          path: elk/.env
-          if-no-files-found : error
-          retention-days: 1        
+          path: /home/runner/work/stack-soc-docker/stack-soc-docker/elk/.env
+          if-no-files-found: error 
 
       - name: 💾 Sauvegarder le workspace
         uses: actions/upload-artifact@v4
@@ -72,21 +71,20 @@ jobs:
           path: |
             .
 
-      - name: 📥 Restaurer `.env`
+      - name: 🔄 Restaurer `.env`
         uses: actions/download-artifact@v4
         with:
           name: env_file
-          path: elk/
-
-      - name: 🕵️ Vérifier la récupération du fichier .env
-        run: ls -la elk/ && cat elk/.env
+          path: /home/runner/work/stack-soc-docker/stack-soc-docker/elk/
+          
+      - name: 🕵️ Vérifier `.env` après la récupération
+        run: |
+          ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/elk/
+          cat /home/runner/work/stack-soc-docker/stack-soc-docker/elk/.env
         
       - name: 🚀 Déployer ${{ matrix.service }}
         run: |
-          echo "🔄 Déploiement de ${{ matrix.service }}..."
-          set -a
-          source elk/.env
-          set +a          
+          echo "🔄 Déploiement de ${{ matrix.service }}..."     
           docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
 
