@@ -50,15 +50,14 @@ jobs:
           ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/elk/.env
         
         
-      - name: 📂 Copier `.env` sous un autre nom
-        run: |
-          cp elk/.env elk/envfile
-        
+      - name: 📂 Copier `.env` sous un autre nom avant upload
+        run: cp elk/.env elk/env_file
+    
       - name: 💾 Sauvegarder `.env`
         uses: actions/upload-artifact@v4
         with:
-          name: env-file
-          path: elk/envfile
+          name: env_file
+          path: elk/env_file
           if-no-files-found : error
 
       - name: 💾 Sauvegarder le workspace
@@ -70,6 +69,9 @@ jobs:
             .git/
           retention-days: 1
 
+      - name: 🛠 Vérifier les artefacts après upload
+        run: ls -la $GITHUB_WORKSPACE
+        
   ###########################
   #      DÉPLOIEMENT        #
   ###########################
@@ -92,15 +94,10 @@ jobs:
         with:
           name: env_file
           path: elk/
-
+          
       - name: 🛠 Vérifier `.env` après la récupération
         run: ls -la elk/
-        
-      - name: 🕵️ Vérifier `.env` après la récupération
-        run: |
-          ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/elk/
-          cat /home/runner/work/stack-soc-docker/stack-soc-docker/elk/.env
-        
+          
       - name: 🚀 Déployer ${{ matrix.service }}
         run: |
           echo "🔄 Déploiement de ${{ matrix.service }}..."     
