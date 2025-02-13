@@ -59,14 +59,6 @@ jobs:
       - name: 🚀 Déployer ${{ matrix.service }}
         run: |
           echo "🔄 Déploiement de ${{ matrix.service }}..."
-          
-          if [ -f ${{ matrix.service }}/.env ]; then
-            echo "✅ Fichier .env trouvé. Contenu:"
-            cat ${{ matrix.service }}/.env
-          else
-            echo "❌ Fichier .env non trouvé"
-            exit 1
-          fi
 
           cp .env ${{ matrix.service }}/.env
           
