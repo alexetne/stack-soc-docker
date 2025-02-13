@@ -49,6 +49,7 @@ jobs:
           path: |
             .
             .git/
+            elk/.env
           retention-days: 1
 
   ###########################
@@ -65,19 +66,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: workspace
-          path: .
+          path: |
+            .
+            elk/.env
 
       - name: 🚀 Déployer ${{ matrix.service }}
         run: |
           echo "🔄 Déploiement de ${{ matrix.service }}..."
           docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
-
-      - name : DEBUG VARIABLES
-        run: |
-          echo "ES_MEM_LIMIT=${{ secrets.ES_MEM_LIMIT }}"
-          echo "KB_MEM_LIMIT=${{ secrets.KB_MEM_LIMIT }}"
-
 
       - name: 📦 Stocker les logs de ${{ matrix.service }}
         uses: actions/upload-artifact@v4
