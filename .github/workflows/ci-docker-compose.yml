@@ -34,12 +34,16 @@ jobs:
         run: |
           ls -la elk/
           cat elk/.env || echo "❌ Fichier .env introuvable !"
-
+      
+      - name: 🕵️ Vérifier le chemin du `.env`
+        run: find $GITHUB_WORKSPACE -name ".env"
+        
       - name: 💾 Sauvegarder `.env`
         uses: actions/upload-artifact@v4
         with:
           name: env_file
           path: elk/.env
+          if-no-files-found : error
           retention-days: 1        
 
       - name: 💾 Sauvegarder le workspace
