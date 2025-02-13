@@ -59,8 +59,7 @@ jobs:
       - name: 🚀 Déployer ${{ matrix.service }}
         run: |
           echo "🔄 Déploiement de ${{ matrix.service }}..."
-          cp ${{ matrix.service }}/.env .env
-          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml --env-file .env ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
+          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml --env-file ${{ matrix.service }}/.env ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
 
 
