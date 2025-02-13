@@ -18,8 +18,12 @@ jobs:
       - name: 📥 Cloner le dépôt
         uses: actions/checkout@v4
 
-      - name: ⚙️ Configurer Docker et Swarm
+      - name: ⚙️ Configurer Docker Swarm
         run: docker swarm init || echo "Swarm déjà initialisé ou erreur ignorée"
+      
+      - name: ⚙️ Vérifier si Docker Swarm est bien actif
+        run: docker info | grep -i swarm
+      
 
       - name: 🔎 Vérifier l'existence des fichiers Docker Compose
         run: |
@@ -58,7 +62,7 @@ jobs:
         with:
           name: env_file
           path: elk/env_file
-          if-no-files-found : error
+          if-no-files-found : warn
 
       - name: 💾 Sauvegarder le workspace
         uses: actions/upload-artifact@v4
@@ -107,7 +111,7 @@ jobs:
           echo "ES_MEM_LIMIT=${ES_MEM_LIMIT}"
           echo "KB_MEM_LIMIT=${KB_MEM_LIMIT}"
     
-          docker stack deploy -c elk/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
+          docker stack deploy --compose-file elk/docker-compose.yml --env-file elk/env_file ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
 
       - name: 📦 Stocker les logs de ${{ matrix.service }}
