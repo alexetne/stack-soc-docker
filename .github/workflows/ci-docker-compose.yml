@@ -7,11 +7,11 @@ on:
   pull_request:
     branches:
       - main
-
+      
+      ###########################
+      #      CONFIGURATION      #
+      ###########################
 jobs:
-  ###########################
-  #      CONFIGURATION      #
-  ###########################
   setup:
     runs-on: ubuntu-latest
     steps:
@@ -22,7 +22,9 @@ jobs:
         run: |
           if [ -f elk/.env ]; then
             echo "Chargement des variables depuis elk/.env"
-            grep -v '^#' elk/.env | grep -v '^$' >> $GITHUB_ENV
+            set -a
+            source elk/.env
+            set +a
           else
             echo "❌ Fichier .env manquant dans elk"
             exit 1
