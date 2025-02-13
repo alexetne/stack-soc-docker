@@ -29,6 +29,18 @@ jobs:
               exit 1
             fi
           done
+      
+      - name: 🕵️ Vérification de l'existence du fichier .env
+        run: |
+          ls -la elk/
+          cat elk/.env || echo "❌ Fichier .env introuvable !"
+
+          - name: 💾 Sauvegarder `.env`
+          uses: actions/upload-artifact@v4
+          with:
+            name: env_file
+            path: elk/.env
+            retention-days: 1        
 
       - name: 💾 Sauvegarder le workspace
         uses: actions/upload-artifact@v4
@@ -56,10 +68,21 @@ jobs:
           path: |
             .
 
+      - name: 📥 Restaurer `.env`
+        uses: actions/download-artifact@v4
+        with:
+          name: env_file
+          path: elk/
+
+      - name: 🕵️ Vérifier la récupération du fichier .env
+        run: ls -la elk/ && cat elk/.env
+        
       - name: 🚀 Déployer ${{ matrix.service }}
         run: |
           echo "🔄 Déploiement de ${{ matrix.service }}..."
-          export $(grep -v '^#' .env | xargs) && \
+          set -a
+          source elk/.env
+          set +a          
           docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
 
