@@ -274,11 +274,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-            # Vérifier si une PR existe déjà entre develop et main
             EXISTING_PR=$(gh pr list --base main --head ${{ github.ref_name }} --state open --json number --jq '.[0].number')
             
             if [ -z "$EXISTING_PR" ]; then
-              # Si aucune PR ouverte, créer une nouvelle PR
               echo "Création de la PR vers main"
               gh pr create --base main --head ${{ github.ref_name }} --title "Merge successful deployment" --body "Tous les services se sont déployés correctement. PR automatique vers main."
             else
