@@ -146,7 +146,7 @@ jobs:
     
           export $(grep -v '^#' ${{ matrix.service }}/env_file_${{ matrix.service }} | xargs)
     
-          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt || exit 1
+          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
 
       - name: 📦 Stocker les logs de ${{ matrix.service }}
