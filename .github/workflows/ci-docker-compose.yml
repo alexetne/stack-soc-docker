@@ -14,9 +14,6 @@ on:
 jobs:
   setup:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service: [elk, opencti, openbas]
     steps:
       - name: 📥 Cloner le dépôt
         uses: actions/checkout@v4
