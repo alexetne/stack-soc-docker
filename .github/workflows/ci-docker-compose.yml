@@ -27,55 +27,27 @@ jobs:
       - name: ⚙️ Vérifier si Docker Swarm est bien actif
         run: docker info | grep -i swarm
 
-      - name: 🔎 Vérifier l'existence des fichiers Docker Compose
+      - name: 🔎 Vérifier l'existence des fichiers Docker Compose et `.env`
         run: |
           for service in ${{ matrix.service }}; do
-            if [[ ! -f "$service/docker-compose.yml" ]]; then
-              echo "❌ Fichier manquant : $service/docker-compose.yml"
+            if [[ ! -f "$service/docker-compose.yml" || ! -f "$service/.env" ]]; then
+              echo "❌ Fichier manquant pour $service"
               exit 1
             fi
           done
-      
-      - name: 🕵️ Vérification de l'existence du fichier .env
-        run: |
-          ls -la ${{ matrix.service }}/
-          cat ${{ matrix.service }}/.env || echo "❌ Fichier .env introuvable !"
-      
-      - name: 🕵️ Vérifier le chemin du `.env`
-        run: find $GITHUB_WORKSPACE -name ".env"
 
-      - name: 📂 Vérifier la présence du `.env`
-        run: |
-          echo "📂 Contenu du dossier ${{ matrix.service }} :"
-          ls -la ${{ matrix.service }}/
-          echo "📂 Contenu du répertoire courant :"
-          ls -la
-      
-      - name: 📂 Vérifier `.env` avant upload
-        run: |
-          ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/${{ matrix.service }}/.env
-        
-      - name: 📂 Copier `.env` sous un autre nom avant upload
-        run: cp ${{ matrix.service }}/.env ${{ matrix.service }}/env_file
-    
       - name: 💾 Sauvegarder `.env`
         uses: actions/upload-artifact@v4
         with:
-          name: env_file_${{ matrix.service }}  # Nom unique par service
-          path: ${{ matrix.service }}/env_file
-          if-no-files-found : warn
+          name: env_file_${{ matrix.service }}
+          path: ${{ matrix.service }}/.env
 
       - name: 💾 Sauvegarder le workspace
         uses: actions/upload-artifact@v4
         with:
           name: workspace
-          path: |
-            .
-            .git/
+          path: ./
           retention-days: 1
-
-      - name: 🛠 Vérifier les artefacts après upload
-        run: ls -la $GITHUB_WORKSPACE
 
 ###########################
 #      DÉPLOIEMENT        #
@@ -91,38 +63,16 @@ jobs:
       matrix:
         service: [elk, opencti, openbas]
     steps:
-      - name: ⚙️ Vérifier et configurer Docker Swarm
-        run: |
-          if [ "$(docker info --format '{{.Swarm.LocalNodeState}}')" != "active" ]; then
-            echo "Swarm inactif, initialisation..."
-            docker swarm init || true
-          else
-            echo "Swarm déjà actif."
-          fi
-
-      - name: 🔄 Restaurer le workspace
+      - name: 🔄 Restaurer le workspace et `.env`
         uses: actions/download-artifact@v4
         with:
           name: workspace
-          path: .
-
-      - name: 🔄 Restaurer `.env`
-        uses: actions/download-artifact@v4
-        with:
-          name: env_file_${{ matrix.service }}  # Nom unique par service
-          path: ${{ matrix.service }}/
-          
-      - name: 🛠 Vérifier `.env` après la récupération
-        run: ls -la ${{ matrix.service }}/
-          
+          path: ./
+      
       - name: 🚀 Déployer ${{ matrix.service }}
         run: |
-          echo "🔄 Déploiement de ${{ matrix.service }}..."
-    
-          export $(grep -v '^#' ${{ matrix.service }}/env_file | xargs)
-    
-          docker stack deploy -c elk/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
-          sleep 10
+          export $(grep -v '^#' ${{ matrix.service }}/.env | xargs)
+          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
 
       - name: 📦 Stocker les logs de ${{ matrix.service }}
         uses: actions/upload-artifact@v4
@@ -139,8 +89,6 @@ jobs:
     strategy:
       matrix:
         service: [elk, opencti, openbas]
-    outputs:
-      test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
       - name: 📥 Récupérer les logs de ${{ matrix.service }}
         uses: actions/download-artifact@v4
@@ -150,16 +98,12 @@ jobs:
 
       - name: 🔍 Vérifier les erreurs dans logs_${{ matrix.service }}.txt
         id: detect_failure
-        run: | 
-          TEST_FAILED=false
-          log_file="logs_${{ matrix.service }}.txt"
-          
-          if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot\|swarm manager" "$log_file") ]]; then
-            echo "⚠️ Erreur détectée dans $log_file"
-            TEST_FAILED=true
-          fi
-
-          echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
+        run: |
+          if grep -qi "error\|failed\|cannot\|swarm manager" logs_${{ matrix.service }}.txt; then
+            echo "⚠️ Erreur détectée dans logs_${{ matrix.service }}.txt"
+            echo "test_failed=true" >> $GITHUB_ENV
+          else
+            echo "test_failed=false" >> $GITHUB_ENV
 
 ###########################
 #   GESTION DES LOGS      #
@@ -178,7 +122,6 @@ jobs:
         run: |
           if [ ! -d ".git" ]; then
             echo "⚠️ Le dossier .git est manquant, reclonage en cours..."
-            rm -rf ./*
             git clone https://github.com/${{ github.repository }}.git .
           fi
 
@@ -187,49 +130,23 @@ jobs:
         with:
           path: logs/
 
-      - name: 📝 Vérifier et générer un fichier de logs consolidé
+      - name: 📝 Générer un fichier de logs consolidé
         run: |
-          LOGS_FOUND=false
           echo "📅 Date : $(date)" > error-log.txt
-          
-          for service in opencti elk openbas; do  # Ajoute ici d'autres services
-            log_file="logs/logs_$service/logs_$service.txt"
-            
+          for service in elk opencti openbas; do
+            log_file="logs/logs_${service}/logs_${service}.txt"
             if [[ -f "$log_file" ]]; then
-              LOGS_FOUND=true
-              echo "❌ ERREUR DE DÉPLOIEMENT POUR $service :" >> error-log.txt
+              echo "❌ ERREUR POUR $service :" >> error-log.txt
               cat "$log_file" >> error-log.txt
             else
               echo "✅ Aucun log trouvé pour $service." >> error-log.txt
             fi
           done
-
-          if [[ "$LOGS_FOUND" == "true" ]]; then
-            echo "ERROR_LOGS=true" >> $GITHUB_ENV
-            git add error-log.txt
-          else
-            echo "ERROR_LOGS=false" >> $GITHUB_ENV
-          fi
-
-      - name: 🚀 Déterminer la branche cible et Pousser les logs
-        if: env.ERROR_LOGS == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "github-actions@github.com"
-
-          TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
-          BRANCH="erreur-$TIMESTAMP"
-
-          git checkout -b $BRANCH || git checkout $BRANCH
-
+          git add error-log.txt
           git commit -m "Ajout des logs d'erreur via GitHub Actions" || echo "Aucune modification à commit"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $BRANCH --force
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
 
       - name: 🔀 Créer une Pull Request vers `develop` si aucun log d'erreur n'est trouvé
-        if: env.ERROR_LOGS == 'false'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: success()
         run: |
-          gh pr create --base develop --head ${{ github.ref_name }} --title "Merge successful deployment" --body "Tous les services se sont déployés correctement. PR automatique vers develop."
+          gh pr create --base develop --head ${{ github.ref_name }} --title "Merge successful deployment" --body "Tous les services se sont déployés correctement."
