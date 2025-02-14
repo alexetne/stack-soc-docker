@@ -270,7 +270,7 @@ jobs:
             git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $BRANCH --force
         
       - name: 🔀 Vérifier l'existence de la PR et créer une Pull Request vers `develop` si nécessaire
-        if: env.ERROR_LOGS == 'false' || github.ref == 'refs/heads/develop'
+        if: env.ERROR_LOGS == 'false' && github.ref != 'refs/heads/develop'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
