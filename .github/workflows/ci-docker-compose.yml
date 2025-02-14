@@ -14,23 +14,37 @@ on:
 jobs:
   setup:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service: [elk, opencti, openbas]
     steps:
       - name: 📥 Cloner le dépôt
         uses: actions/checkout@v4
-
+  
       - name: ⚙️ Configurer Docker Swarm
         run: docker swarm init || echo "Swarm déjà initialisé ou erreur ignorée"
       
       - name: ⚙️ Vérifier si Docker Swarm est bien actif
         run: docker info | grep -i swarm
-      
 
+      - name: 💾 Sauvegarder le workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace
+          path: |
+            .
+            .git/
+          retention-days: 1
+
+      - name: 🛠 Vérifier les artefacts après upload
+        run: ls -la $GITHUB_WORKSPACE
+
+  matrix_setup:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [elk, opencti, openbas]
+    steps:
       - name: 🔎 Vérifier l'existence des fichiers Docker Compose
         run: |
-          for service in elk; do
+          for service in ${{matrix.service}}; do
             if [[ ! -f "$service/docker-compose.yml" ]]; then
               echo "❌ Fichier manquant : $service/docker-compose.yml"
               exit 1
@@ -66,15 +80,6 @@ jobs:
           name: env_file_${{ matrix.service }}
           path: ${{ matrix.service }}/env_file_${{ matrix.service }}
           if-no-files-found : warn
-
-      - name: 💾 Sauvegarder le workspace
-        uses: actions/upload-artifact@v4
-        with:
-          name: workspace
-          path: |
-            .
-            .git/
-          retention-days: 1
 
       - name: 🛠 Vérifier les artefacts après upload
         run: ls -la $GITHUB_WORKSPACE
@@ -124,7 +129,7 @@ jobs:
     
           export $(grep -v '^#' ${{ matrix.service }}/env_file${{ matrix.service }} | xargs)
     
-          docker stack deploy -c elk/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
+          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
 
       - name: 📦 Stocker les logs de ${{ matrix.service }}
