@@ -1,0 +1,106 @@
+services:
+  pgsql:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: openbas
+    volumes:
+      - pgsqldata:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "openbas" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  minio:
+    image: minio/minio:RELEASE.2024-05-28T17-19-04Z
+    volumes:
+      - s3data:/data
+    ports:
+      - "9000:9000"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data
+    restart: always
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  rabbitmq:
+    image: rabbitmq:4.0-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+      - RABBITMQ_NODENAME=rabbit01@localhost
+    volumes:
+      - amqpdata:/var/lib/rabbitmq
+    restart: always
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  openbas:
+    image: openbas/platform:1.12.0
+    environment:
+      # OpenBAS General Configuration
+      - SERVER_SSL_KEY-STORE-PASSWORD=${KEYSTORE_PASSWORD}
+      - OPENBAS_BASE-URL=http://localhost:8080
+      - OPENBAS_AUTH-LOCAL-ENABLE=true
+      - OPENBAS_ADMIN_EMAIL=${OPENBAS_ADMIN_EMAIL}
+      - OPENBAS_ADMIN_PASSWORD=${OPENBAS_ADMIN_PASSWORD}
+      - OPENBAS_ADMIN_TOKEN=${OPENBAS_ADMIN_TOKEN}
+      # POSTGRES
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://pgsql:5432/openbas
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      # MINIO
+      - MINIO_ENDPOINT=minio
+      - MINIO_ACCESS-KEY=${MINIO_ROOT_USER}
+      - MINIO_ACCESS-SECRET=${MINIO_ROOT_PASSWORD}
+      # RABBITMQ
+      - OPENBAS_RABBITMQ_HOSTNAME=rabbitmq
+      - OPENBAS_RABBITMQ_USER=${RABBITMQ_DEFAULT_USER}
+      - OPENBAS_RABBITMQ_PASS=${RABBITMQ_DEFAULT_PASS}
+      # SPRING MAIL Configurations
+      - SPRING_MAIL_HOST=${SPRING_MAIL_HOST}
+      - SPRING_MAIL_PORT=${SPRING_MAIL_PORT}
+      - SPRING_MAIL_USERNAME=${SPRING_MAIL_USERNAME}
+      - SPRING_MAIL_PASSWORD=${SPRING_MAIL_PASSWORD}
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH}
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE=${SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE}
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST=*
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE}
+      # IMAP Configurations
+      - OPENBAS_MAIL_IMAP_ENABLED=${OPENBAS_MAIL_IMAP_ENABLED}
+      - OPENBAS_MAIL_IMAP_HOST=${OPENBAS_MAIL_IMAP_HOST}
+      - OPENBAS_MAIL_IMAP_PORT=${OPENBAS_MAIL_IMAP_PORT}
+      - OPENBAS_MAIL_IMAP_USERNAME=${SPRING_MAIL_USERNAME}
+      - OPENBAS_MAIL_IMAP_PASSWORD=${SPRING_MAIL_PASSWORD}
+      - OPENBAS_MAIL_IMAP_AUTH=${OPENBAS_MAIL_IMAP_AUTH}
+      - OPENBAS_MAIL_IMAP_SSL_ENABLE=${OPENBAS_MAIL_IMAP_SSL_ENABLE}
+      - OPENBAS_MAIL_IMAP_SSL_TRUST=*
+      - OPENBAS_MAIL_IMAP_STARTTLS_ENABLE=${OPENBAS_MAIL_IMAP_STARTTLS_ENABLE}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - pgsql
+      - minio
+      - rabbitmq
+    restart: always
+  collector-mitre-attack:
+    image: openbas/collector-mitre-attack:1.12.0
+    environment:
+      - OPENBAS_URL=http://openbas:8080
+      - OPENBAS_TOKEN=${OPENBAS_ADMIN_TOKEN}
+      - COLLECTOR_ID=${COLLECTOR_MITRE_ATTACK_ID} # Valid UUIDv4
+      - "COLLECTOR_NAME=MITRE ATT&CK"
+      - COLLECTOR_LOG_LEVEL=info
+    restart: always
+volumes:
+  pgsqldata:
+  s3data:
+  amqpdata:

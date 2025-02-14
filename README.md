@@ -10,6 +10,7 @@ On retrouvera les outils suivants :
 - Wazuh : SIEM / EDR / XDR
 - ELK : puit de logs
 - OpenCTI : Gestion des IOC et analyse de menaces
+- OpenBAS
 - TheHive & Cortex : gestion des incidents + automatisation
 - Icinga : Surveillance infra & alertes
 - Netdata : Surveillance des perfs système
