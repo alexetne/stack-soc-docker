@@ -78,16 +78,11 @@ jobs:
 
       - name: 📂 Vérifier la présence du `.env`
         run: |
-          echo "📂 Contenu du dossier elk :"
+          echo "📂 Contenu du dossier ${{ matrix.service }} :"
           ls -la ${{ matrix.service }}/
           echo "📂 Contenu du répertoire courant :"
           ls -la
       
-      - name: 📂 Vérifier `.env` avant upload
-        run: |
-          ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/${{ matrix.service }}/.env
-        
-        
       - name: 📂 Copier `.env` sous un autre nom avant upload
         run: cp ${{ matrix.service }}/.env ${{ matrix.service }}/env_file_${{ matrix.service }}
     
