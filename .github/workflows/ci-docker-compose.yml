@@ -37,6 +37,7 @@ jobs:
         run: ls -la $GITHUB_WORKSPACE
 
   matrix_setup:
+    needs: setup
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -88,7 +89,9 @@ jobs:
   #      DÉPLOIEMENT        #
   ###########################
   deploy:
-    needs: setup
+    needs: 
+      - setup
+      - matrix_setup
     runs-on: ubuntu-latest
     services:
       docker:
