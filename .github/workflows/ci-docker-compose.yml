@@ -80,11 +80,17 @@ jobs:
       matrix:
         service: [elk, opencti, openbas]
     steps:
-      - name: 🔄 Restaurer le workspace et `.env`
+      - name: 🔄 Restaurer le workspace
         uses: actions/download-artifact@v4
         with:
           name: workspace
           path: ./
+
+      - name: 🔄 Restaurer `.env` depuis l'artefact
+        uses: actions/download-artifact@v4
+        with:
+          name: env_file_${{ matrix.service }}
+          path: ${{ matrix.service }}/
       
       - name: 🚀 Déployer ${{ matrix.service }}
         run: |
