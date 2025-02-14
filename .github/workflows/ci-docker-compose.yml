@@ -46,7 +46,7 @@ jobs:
 
       - name: 📂 Vérifier la présence du `.env`
         run: |
-          echo "📂 Contenu du dossier elk :"
+          echo "📂 Contenu du dossier ${{ matrix.service }} :"
           ls -la ${{ matrix.service }}/
           echo "📂 Contenu du répertoire courant :"
           ls -la
@@ -61,7 +61,7 @@ jobs:
       - name: 💾 Sauvegarder `.env`
         uses: actions/upload-artifact@v4
         with:
-          name: env_file
+          name: env_file_${{ matrix.service }}  # Nom unique par service
           path: ${{ matrix.service }}/env_file
           if-no-files-found : warn
 
@@ -109,7 +109,7 @@ jobs:
       - name: 🔄 Restaurer `.env`
         uses: actions/download-artifact@v4
         with:
-          name: env_file
+          name: env_file_${{ matrix.service }}  # Nom unique par service
           path: ${{ matrix.service }}/
           
       - name: 🛠 Vérifier `.env` après la récupération
