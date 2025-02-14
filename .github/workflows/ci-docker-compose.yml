@@ -43,6 +43,22 @@ jobs:
       matrix:
         service: [elk, opencti, openbas]
     steps:
+      - name: ⚙️ Vérifier et configurer Docker Swarm
+        run: |
+          if [ "$(docker info --format '{{.Swarm.LocalNodeState}}')" != "active" ]; then
+            echo "Swarm inactif, initialisation..."
+            docker swarm init || true
+          else
+            echo "Swarm déjà actif."
+          fi
+
+      - name: 🔄 Restaurer le workspace
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: |
+            .
+
       - name: 🔎 Vérifier l'existence des fichiers Docker Compose
         run: |
           for service in ${{matrix.service}}; do
