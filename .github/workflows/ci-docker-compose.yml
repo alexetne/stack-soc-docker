@@ -32,11 +32,18 @@ jobs:
           retention-days: 1
           
   matrix_setup : 
+    needs: setup
     runs-on: ubuntu-latest
     strategy:
       matrix:
         service: [elk, opencti, openbas]
     steps:
+      - name: 🔄 Restaurer le workspace et `.env`
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: ./
+  
       - name: 🔎 Vérifier l'existence des fichiers Docker Compose et `.env`
         run: |
           for service in ${{ matrix.service }}; do
