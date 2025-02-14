@@ -53,10 +53,19 @@ jobs:
             fi
           done
         
-      - name: 🕵️ Vérification de l'existence du fichier .env
+      - name: 📂 Vérifier la présence du `.env`
         run: |
-          ls -la elk/
-          cat elk/.env || echo "❌ Fichier .env introuvable !"
+          echo "📂 Contenu du dossier ${{ matrix.service }} :"
+          ls -la ${{ matrix.service }}/
+          echo "📂 Contenu du répertoire courant :"
+          ls -la
+
+      - name: 📂 Vérifier `.env` avant upload
+        run: |
+          ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/${{ matrix.service }}/.env
+
+      - name: 📂 Copier `.env` sous un autre nom avant upload
+        run: cp ${{ matrix.service }}/.env ${{ matrix.service }}/env_file_${{ matrix.service }}
       
       - name: 💾 Sauvegarder `.env`
         uses: actions/upload-artifact@v4
