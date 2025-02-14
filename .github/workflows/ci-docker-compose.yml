@@ -149,11 +149,20 @@ jobs:
           docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
 
-      - name: 📦 Stocker les logs de ${{ matrix.service }}
+          if [[ $? -ne 0 ]]; then
+            echo "🚨 Erreur lors du déploiement de ${{ matrix.service }}"
+            echo "test_failed=true" >> $GITHUB_ENV
+          else
+            echo "✅ Déploiement réussi pour ${{ matrix.service }}"
+            echo "test_failed=false" >> $GITHUB_ENV
+          fi
+    
+      - name: 📦 Sauvegarder les logs si une erreur est détectée
+        if: env.test_failed == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: logs_${{ matrix.service }}
-          path: logs_${{ matrix.service }}.txt
+            name: logs_${{ matrix.service }}
+            path: logs_${{ matrix.service }}.txt
 
   ###########################
   #  DÉTECTION DES ERREURS  #
