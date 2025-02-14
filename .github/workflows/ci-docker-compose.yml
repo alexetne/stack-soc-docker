@@ -176,7 +176,8 @@ jobs:
     outputs:
       test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
-      - name: 📥 Récupérer les logs de ${{ matrix.service }}
+      - name: 📥 Récupérer les logs de ${{ matrix.service }} uniquement si une erreur est détectée
+        if: env.test_failed == 'true'
         uses: actions/download-artifact@v4
         with:
           name: logs_${{ matrix.service }}
@@ -188,11 +189,12 @@ jobs:
           TEST_FAILED=false
           log_file="logs_${{ matrix.service }}.txt"
           
+          # Si le fichier de logs existe, on analyse les erreurs dedans
           if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot\|swarm manager" "$log_file" | grep -v "Creating service") ]]; then
             echo "⚠️ Erreur détectée dans $log_file"
             TEST_FAILED=true
           fi
-
+          
           echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
 
   ###########################
@@ -217,6 +219,7 @@ jobs:
           fi
 
       - name: 📥 Télécharger tous les logs
+        if: env.test_failed == 'true'
         uses: actions/download-artifact@v4
         with:
           path: logs/
@@ -226,7 +229,7 @@ jobs:
           LOGS_FOUND=false
           echo "📅 Date : $(date)" > error-log.txt
           
-          for service in wazuh elk; do
+          for service in wazuh elk opencti openbas; do
             log_file="logs/logs_$service/logs_$service.txt"
             
             if [[ -f "$log_file" ]]; then
