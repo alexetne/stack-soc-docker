@@ -43,6 +43,9 @@ jobs:
       matrix:
         service: [elk, opencti, openbas]
     steps:
+      - name: Cloner le dépôt
+        uses: actions/checkout@v4
+
       - name: ⚙️ Vérifier et configurer Docker Swarm
         run: |
           if [ "$(docker info --format '{{.Swarm.LocalNodeState}}')" != "active" ]; then
