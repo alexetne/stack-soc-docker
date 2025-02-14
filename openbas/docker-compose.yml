@@ -87,12 +87,9 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      pgsql:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      - pgsql
+      - minio
+      - rabbitmq
     restart: always
   collector-mitre-attack:
     image: openbas/collector-mitre-attack:1.12.0

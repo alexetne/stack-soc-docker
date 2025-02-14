@@ -17,52 +17,12 @@ jobs:
     steps:
       - name: 📥 Cloner le dépôt
         uses: actions/checkout@v4
-
+  
       - name: ⚙️ Configurer Docker Swarm
         run: docker swarm init || echo "Swarm déjà initialisé ou erreur ignorée"
       
       - name: ⚙️ Vérifier si Docker Swarm est bien actif
         run: docker info | grep -i swarm
-      
-
-      - name: 🔎 Vérifier l'existence des fichiers Docker Compose
-        run: |
-          for service in elk; do
-            if [[ ! -f "$service/docker-compose.yml" ]]; then
-              echo "❌ Fichier manquant : $service/docker-compose.yml"
-              exit 1
-            fi
-          done
-      
-      - name: 🕵️ Vérification de l'existence du fichier .env
-        run: |
-          ls -la elk/
-          cat elk/.env || echo "❌ Fichier .env introuvable !"
-      
-      - name: 🕵️ Vérifier le chemin du `.env`
-        run: find $GITHUB_WORKSPACE -name ".env"
-
-      - name: 📂 Vérifier la présence du `.env`
-        run: |
-          echo "📂 Contenu du dossier elk :"
-          ls -la elk/
-          echo "📂 Contenu du répertoire courant :"
-          ls -la
-      
-      - name: 📂 Vérifier `.env` avant upload
-        run: |
-          ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/elk/.env
-        
-        
-      - name: 📂 Copier `.env` sous un autre nom avant upload
-        run: cp elk/.env elk/env_file
-    
-      - name: 💾 Sauvegarder `.env`
-        uses: actions/upload-artifact@v4
-        with:
-          name: env_file
-          path: elk/env_file
-          if-no-files-found : warn
 
       - name: 💾 Sauvegarder le workspace
         uses: actions/upload-artifact@v4
@@ -75,12 +35,77 @@ jobs:
 
       - name: 🛠 Vérifier les artefacts après upload
         run: ls -la $GITHUB_WORKSPACE
+
+  matrix_setup:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [elk, opencti, openbas]
+    steps:
+      - name: Cloner le dépôt
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Vérifier et configurer Docker Swarm
+        run: |
+          if [ "$(docker info --format '{{.Swarm.LocalNodeState}}')" != "active" ]; then
+            echo "Swarm inactif, initialisation..."
+            docker swarm init || true
+          else
+            echo "Swarm déjà actif."
+          fi
+
+      - name: 🔄 Restaurer le workspace
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+          path: |
+            .
+
+      - name: 🔎 Vérifier l'existence des fichiers Docker Compose
+        run: |
+          for service in ${{matrix.service}}; do
+            if [[ ! -f "$service/docker-compose.yml" ]]; then
+              echo "❌ Fichier manquant : $service/docker-compose.yml"
+              exit 1
+            fi
+          done
+      
+      - name: 🕵️ Vérification de l'existence du fichier .env
+        run: |
+          ls -la ${{ matrix.service }}/
+          cat ${{ matrix.service }}/.env || echo "❌ Fichier .env introuvable !"
+      
+      - name: 🕵️ Vérifier le chemin du `.env`
+        run: find $GITHUB_WORKSPACE -name ".env"
+
+      - name: 📂 Vérifier la présence du `.env`
+        run: |
+          echo "📂 Contenu du dossier ${{ matrix.service }} :"
+          ls -la ${{ matrix.service }}/
+          echo "📂 Contenu du répertoire courant :"
+          ls -la
+      
+      - name: 📂 Copier `.env` sous un autre nom avant upload
+        run: cp ${{ matrix.service }}/.env ${{ matrix.service }}/env_file_${{ matrix.service }}
+    
+      - name: 💾 Sauvegarder `.env`
+        uses: actions/upload-artifact@v4
+        with:
+          name: env_file_${{ matrix.service }}
+          path: ${{ matrix.service }}/env_file_${{ matrix.service }}
+          if-no-files-found : warn
+
+      - name: 🛠 Vérifier les artefacts après upload
+        run: ls -la $GITHUB_WORKSPACE
         
   ###########################
   #      DÉPLOIEMENT        #
   ###########################
   deploy:
-    needs: setup
+    needs: 
+      - setup
+      - matrix_setup
     runs-on: ubuntu-latest
     services:
       docker:
@@ -88,7 +113,7 @@ jobs:
         options: --privileged
     strategy:
       matrix:
-        service: [elk]
+        service: [elk, opencti, openbas]
     steps:
       - name: ⚙️ Vérifier et configurer Docker Swarm
         run: |
@@ -109,8 +134,8 @@ jobs:
       - name: 🔄 Restaurer `.env`
         uses: actions/download-artifact@v4
         with:
-          name: env_file
-          path: elk/
+          name: env_file_${{ matrix.service }}
+          path: ${{ matrix.service }}/
           
       - name: 🛠 Vérifier `.env` après la récupération
         run: ls -la elk/
@@ -119,19 +144,25 @@ jobs:
         run: |
           echo "🔄 Déploiement de ${{ matrix.service }}..."
     
-          export $(grep -v '^#' elk/env_file | xargs)
+          export $(grep -v '^#' ${{ matrix.service }}/env_file_${{ matrix.service }} | sed 's/\([^=]*\)=\(.*\)/\1="\2"/' | xargs)
     
-          echo "ES_MEM_LIMIT=${ES_MEM_LIMIT}"
-          echo "KB_MEM_LIMIT=${KB_MEM_LIMIT}"
-    
-          docker stack deploy -c elk/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
+          docker stack deploy -c ${{ matrix.service }}/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
 
-      - name: 📦 Stocker les logs de ${{ matrix.service }}
+          if [[ $? -ne 0 ]]; then
+            echo "🚨 Erreur lors du déploiement de ${{ matrix.service }}"
+            echo "test_failed=true" >> $GITHUB_ENV
+          else
+            echo "✅ Déploiement réussi pour ${{ matrix.service }}"
+            echo "test_failed=false" >> $GITHUB_ENV
+          fi
+    
+      - name: 📦 Sauvegarder les logs si une erreur est détectée
+        if: env.test_failed == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: logs_${{ matrix.service }}
-          path: logs_${{ matrix.service }}.txt
+            name: logs_${{ matrix.service }}
+            path: logs_${{ matrix.service }}.txt
 
   ###########################
   #  DÉTECTION DES ERREURS  #
@@ -141,11 +172,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [elk]
+        service: [elk, opencti, openbas]
     outputs:
       test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
-      - name: 📥 Récupérer les logs de ${{ matrix.service }}
+      - name: 📥 Récupérer les logs de ${{ matrix.service }} uniquement si une erreur est détectée
+        if: env.test_failed == 'true'
         uses: actions/download-artifact@v4
         with:
           name: logs_${{ matrix.service }}
@@ -157,11 +189,12 @@ jobs:
           TEST_FAILED=false
           log_file="logs_${{ matrix.service }}.txt"
           
-          if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot\|swarm manager" "$log_file") ]]; then
+          # Si le fichier de logs existe, on analyse les erreurs dedans
+          if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot\|swarm manager" "$log_file" | grep -v "Creating service") ]]; then
             echo "⚠️ Erreur détectée dans $log_file"
             TEST_FAILED=true
           fi
-
+          
           echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
 
   ###########################
@@ -186,6 +219,7 @@ jobs:
           fi
 
       - name: 📥 Télécharger tous les logs
+        if: env.test_failed == 'true'
         uses: actions/download-artifact@v4
         with:
           path: logs/
@@ -195,7 +229,7 @@ jobs:
           LOGS_FOUND=false
           echo "📅 Date : $(date)" > error-log.txt
           
-          for service in wazuh elk; do
+          for service in wazuh elk opencti openbas; do
             log_file="logs/logs_$service/logs_$service.txt"
             
             if [[ -f "$log_file" ]]; then
