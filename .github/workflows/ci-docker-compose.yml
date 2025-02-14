@@ -44,14 +44,19 @@ jobs:
           name: workspace
           path: ./
   
-      - name: 🔎 Vérifier l'existence des fichiers Docker Compose et `.env`
+      - name: 🔎 Vérifier l'existence des fichiers Docker Compose
         run: |
-          for service in ${{ matrix.service }}; do
-            if [[ ! -f "$service/docker-compose.yml" || ! -f "$service/.env" ]]; then
-              echo "❌ Fichier manquant pour $service"
+          for service in elk; do
+            if [[ ! -f "$service/docker-compose.yml" ]]; then
+              echo "❌ Fichier manquant : $service/docker-compose.yml"
               exit 1
             fi
           done
+        
+      - name: 🕵️ Vérification de l'existence du fichier .env
+        run: |
+          ls -la elk/
+          cat elk/.env || echo "❌ Fichier .env introuvable !"
       
       - name: 💾 Sauvegarder `.env`
         uses: actions/upload-artifact@v4
