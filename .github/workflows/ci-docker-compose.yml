@@ -14,6 +14,9 @@ on:
 jobs:
   setup:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [elk, opencti, openbas]
     steps:
       - name: 📥 Cloner le dépôt
         uses: actions/checkout@v4
@@ -36,8 +39,8 @@ jobs:
       
       - name: 🕵️ Vérification de l'existence du fichier .env
         run: |
-          ls -la elk/
-          cat elk/.env || echo "❌ Fichier .env introuvable !"
+          ls -la ${{ matrix.service }}/
+          cat ${{ matrix.service }}/.env || echo "❌ Fichier .env introuvable !"
       
       - name: 🕵️ Vérifier le chemin du `.env`
         run: find $GITHUB_WORKSPACE -name ".env"
@@ -45,23 +48,23 @@ jobs:
       - name: 📂 Vérifier la présence du `.env`
         run: |
           echo "📂 Contenu du dossier elk :"
-          ls -la elk/
+          ls -la ${{ matrix.service }}/
           echo "📂 Contenu du répertoire courant :"
           ls -la
       
       - name: 📂 Vérifier `.env` avant upload
         run: |
-          ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/elk/.env
+          ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/${{ matrix.service }}/.env
         
         
       - name: 📂 Copier `.env` sous un autre nom avant upload
-        run: cp elk/.env elk/env_file
+        run: cp ${{ matrix.service }}/.env ${{ matrix.service }}/env_file_${{ matrix.service }}
     
       - name: 💾 Sauvegarder `.env`
         uses: actions/upload-artifact@v4
         with:
-          name: env_file
-          path: elk/env_file
+          name: env_file_${{ matrix.service }}
+          path: ${{ matrix.service }}/env_file_${{ matrix.service }}
           if-no-files-found : warn
 
       - name: 💾 Sauvegarder le workspace
@@ -88,7 +91,7 @@ jobs:
         options: --privileged
     strategy:
       matrix:
-        service: [elk]
+        service: [elk, opencti, openbas]
     steps:
       - name: ⚙️ Vérifier et configurer Docker Swarm
         run: |
@@ -109,8 +112,8 @@ jobs:
       - name: 🔄 Restaurer `.env`
         uses: actions/download-artifact@v4
         with:
-          name: env_file
-          path: elk/
+          name: env_file_${{ matrix.service }}
+          path: ${{ matrix.service }}/
           
       - name: 🛠 Vérifier `.env` après la récupération
         run: ls -la elk/
@@ -119,10 +122,7 @@ jobs:
         run: |
           echo "🔄 Déploiement de ${{ matrix.service }}..."
     
-          export $(grep -v '^#' elk/env_file | xargs)
-    
-          echo "ES_MEM_LIMIT=${ES_MEM_LIMIT}"
-          echo "KB_MEM_LIMIT=${KB_MEM_LIMIT}"
+          export $(grep -v '^#' ${{ matrix.service }}/env_file${{ matrix.service }} | xargs)
     
           docker stack deploy -c elk/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
@@ -141,7 +141,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [elk]
+        service: [elk, opencti, openbas]
     outputs:
       test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
