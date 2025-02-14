@@ -251,22 +251,28 @@ jobs:
       - name: 🚀 Déterminer la branche cible et Pousser les logs
         if: env.ERROR_LOGS == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "github-actions@github.com"
-
-          TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
-          BRANCH="erreur-$TIMESTAMP"
-
-          git checkout -b $BRANCH || git checkout $BRANCH
-
-          git commit -m "Ajout des logs d'erreur via GitHub Actions" || echo "Aucune modification à commit"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $BRANCH --force
-
+            git config --global user.name "GitHub Actions"
+            git config --global user.email "github-actions@github.com"
+        
+            TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
+            BRANCH="erreur-$TIMESTAMP"
+        
+            if git rev-parse --verify $BRANCH; then
+              echo "La branche $BRANCH existe déjà, on passe à l'étape suivante."
+            else
+              git checkout -b $BRANCH
+            fi
+        
+            git add error-log.txt
+            git commit -m "Ajout des logs d'erreur via GitHub Actions" || echo "Aucune modification à commit"
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $BRANCH --force
+        
       - name: 🔀 Créer une Pull Request vers `develop` si aucun log d'erreur n'est trouvé
         if: env.ERROR_LOGS == 'false'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr create --base develop --head ${{ github.ref_name }} --title "Merge successful deployment" --body "Tous les services se sont déployés correctement. PR automatique vers develop."
+            gh pr create --base develop --head ${{ github.ref_name }} --title "Merge successful deployment" --body "Tous les services se sont déployés correctement. PR automatique vers develop."
+        
