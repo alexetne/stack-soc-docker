@@ -27,6 +27,19 @@ jobs:
       - name: ⚙️ Vérifier si Docker Swarm est bien actif
         run: docker info | grep -i swarm
 
+      - name: 💾 Sauvegarder le workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace
+          path: ./
+          retention-days: 1
+          
+  matrix_setup : 
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [elk, opencti, openbas]
+    steps:
       - name: 🔎 Vérifier l'existence des fichiers Docker Compose et `.env`
         run: |
           for service in ${{ matrix.service }}; do
@@ -35,25 +48,20 @@ jobs:
               exit 1
             fi
           done
-
+      
       - name: 💾 Sauvegarder `.env`
         uses: actions/upload-artifact@v4
         with:
           name: env_file_${{ matrix.service }}
           path: ${{ matrix.service }}/.env
 
-      - name: 💾 Sauvegarder le workspace
-        uses: actions/upload-artifact@v4
-        with:
-          name: workspace
-          path: ./
-          retention-days: 1
-
 ###########################
 #      DÉPLOIEMENT        #
 ###########################
   deploy:
-    needs: setup
+    needs: 
+      - setup
+      - matrix_setup
     runs-on: ubuntu-latest
     services:
       docker:
