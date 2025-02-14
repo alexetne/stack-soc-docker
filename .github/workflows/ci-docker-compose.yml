@@ -251,7 +251,7 @@ jobs:
       - name: 🚀 Déterminer la branche cible et Pousser les logs
         if: env.ERROR_LOGS == 'true'
         env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
             git config --global user.name "GitHub Actions"
             git config --global user.email "github-actions@github.com"
@@ -269,10 +269,17 @@ jobs:
             git commit -m "Ajout des logs d'erreur via GitHub Actions" || echo "Aucune modification à commit"
             git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $BRANCH --force
         
-      - name: 🔀 Créer une Pull Request vers `develop` si aucun log d'erreur n'est trouvé
-        if: env.ERROR_LOGS == 'false'
+      - name: 🔀 Créer une Pull Request vers `main` si on est déjà sur `develop` ou si aucun log d'erreur n'est trouvé
+        if: env.ERROR_LOGS == 'false' || github.ref == 'refs/heads/develop'
         env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-            gh pr create --base develop --head ${{ github.ref_name }} --title "Merge successful deployment" --body "Tous les services se sont déployés correctement. PR automatique vers develop."
+            # Si on est sur `develop`, créer la PR vers `main`, sinon vers `develop`
+            if [ "${GITHUB_REF}" == "refs/heads/develop" ]; then
+              echo "Création de la PR vers main"
+              gh pr create --base main --head ${{ github.ref_name }} --title "Merge successful deployment" --body "Tous les services se sont déployés correctement. PR automatique vers main."
+            else
+              echo "Création de la PR vers develop"
+              gh pr create --base develop --head ${{ github.ref_name }} --title "Merge successful deployment" --body "Tous les services se sont déployés correctement. PR automatique vers develop."
+            fi
         
