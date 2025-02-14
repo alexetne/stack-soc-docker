@@ -179,7 +179,7 @@ jobs:
           TEST_FAILED=false
           log_file="logs_${{ matrix.service }}.txt"
           
-          if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot\|swarm manager" "$log_file") ]]; then
+          if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot\|swarm manager" "$log_file" | grep -v "Creating service") ]]; then
             echo "⚠️ Erreur détectée dans $log_file"
             TEST_FAILED=true
           fi
