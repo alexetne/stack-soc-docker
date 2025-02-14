@@ -7,13 +7,16 @@ on:
   pull_request:
     branches:
       - main
-      
-      ###########################
-      #      CONFIGURATION      #
-      ###########################
+
+###########################
+#      CONFIGURATION      #
+###########################
 jobs:
   setup:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [elk, opencti, openbas]
     steps:
       - name: 📥 Cloner le dépôt
         uses: actions/checkout@v4
@@ -23,11 +26,10 @@ jobs:
       
       - name: ⚙️ Vérifier si Docker Swarm est bien actif
         run: docker info | grep -i swarm
-      
 
       - name: 🔎 Vérifier l'existence des fichiers Docker Compose
         run: |
-          for service in elk; do
+          for service in ${{ matrix.service }}; do
             if [[ ! -f "$service/docker-compose.yml" ]]; then
               echo "❌ Fichier manquant : $service/docker-compose.yml"
               exit 1
@@ -36,8 +38,8 @@ jobs:
       
       - name: 🕵️ Vérification de l'existence du fichier .env
         run: |
-          ls -la elk/
-          cat elk/.env || echo "❌ Fichier .env introuvable !"
+          ls -la ${{ matrix.service }}/
+          cat ${{ matrix.service }}/.env || echo "❌ Fichier .env introuvable !"
       
       - name: 🕵️ Vérifier le chemin du `.env`
         run: find $GITHUB_WORKSPACE -name ".env"
@@ -45,23 +47,22 @@ jobs:
       - name: 📂 Vérifier la présence du `.env`
         run: |
           echo "📂 Contenu du dossier elk :"
-          ls -la elk/
+          ls -la ${{ matrix.service }}/
           echo "📂 Contenu du répertoire courant :"
           ls -la
       
       - name: 📂 Vérifier `.env` avant upload
         run: |
-          ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/elk/.env
-        
+          ls -la /home/runner/work/stack-soc-docker/stack-soc-docker/${{ matrix.service }}/.env
         
       - name: 📂 Copier `.env` sous un autre nom avant upload
-        run: cp elk/.env elk/env_file
+        run: cp ${{ matrix.service }}/.env ${{ matrix.service }}/env_file
     
       - name: 💾 Sauvegarder `.env`
         uses: actions/upload-artifact@v4
         with:
           name: env_file
-          path: elk/env_file
+          path: ${{ matrix.service }}/env_file
           if-no-files-found : warn
 
       - name: 💾 Sauvegarder le workspace
@@ -75,10 +76,10 @@ jobs:
 
       - name: 🛠 Vérifier les artefacts après upload
         run: ls -la $GITHUB_WORKSPACE
-        
-  ###########################
-  #      DÉPLOIEMENT        #
-  ###########################
+
+###########################
+#      DÉPLOIEMENT        #
+###########################
   deploy:
     needs: setup
     runs-on: ubuntu-latest
@@ -88,7 +89,7 @@ jobs:
         options: --privileged
     strategy:
       matrix:
-        service: [elk]
+        service: [elk, opencti, openbas]
     steps:
       - name: ⚙️ Vérifier et configurer Docker Swarm
         run: |
@@ -103,26 +104,22 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: workspace
-          path: |
-            .
+          path: .
 
       - name: 🔄 Restaurer `.env`
         uses: actions/download-artifact@v4
         with:
           name: env_file
-          path: elk/
+          path: ${{ matrix.service }}/
           
       - name: 🛠 Vérifier `.env` après la récupération
-        run: ls -la elk/
+        run: ls -la ${{ matrix.service }}/
           
       - name: 🚀 Déployer ${{ matrix.service }}
         run: |
           echo "🔄 Déploiement de ${{ matrix.service }}..."
     
-          export $(grep -v '^#' elk/env_file | xargs)
-    
-          echo "ES_MEM_LIMIT=${ES_MEM_LIMIT}"
-          echo "KB_MEM_LIMIT=${KB_MEM_LIMIT}"
+          export $(grep -v '^#' ${{ matrix.service }}/env_file | xargs)
     
           docker stack deploy -c elk/docker-compose.yml ${{ matrix.service }} 2>&1 | tee logs_${{ matrix.service }}.txt
           sleep 10
@@ -133,15 +130,15 @@ jobs:
           name: logs_${{ matrix.service }}
           path: logs_${{ matrix.service }}.txt
 
-  ###########################
-  #  DÉTECTION DES ERREURS  #
-  ###########################
+###########################
+#  DÉTECTION DES ERREURS  #
+###########################
   check_errors:
     needs: deploy
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [elk]
+        service: [elk, opencti, openbas]
     outputs:
       test_failed: ${{ steps.detect_failure.outputs.test_failed }}
     steps:
@@ -153,7 +150,7 @@ jobs:
 
       - name: 🔍 Vérifier les erreurs dans logs_${{ matrix.service }}.txt
         id: detect_failure
-        run: |
+        run: | 
           TEST_FAILED=false
           log_file="logs_${{ matrix.service }}.txt"
           
@@ -164,9 +161,9 @@ jobs:
 
           echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
 
-  ###########################
-  #   GESTION DES LOGS      #
-  ###########################
+###########################
+#   GESTION DES LOGS      #
+###########################
   push_logs:
     needs: check_errors
     runs-on: ubuntu-latest
@@ -195,7 +192,7 @@ jobs:
           LOGS_FOUND=false
           echo "📅 Date : $(date)" > error-log.txt
           
-          for service in wazuh elk; do
+          for service in opencti elk openbas; do  # Ajoute ici d'autres services
             log_file="logs/logs_$service/logs_$service.txt"
             
             if [[ -f "$log_file" ]]; then
