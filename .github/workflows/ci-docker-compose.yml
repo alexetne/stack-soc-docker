@@ -4,10 +4,13 @@ on:
   push:
     branches-ignore:
       - main
-      
-      ###########################
-      #      CONFIGURATION      #
-      ###########################
+  pull_request:
+    branches:
+      - develop
+
+###########################
+#      CONFIGURATION      #
+###########################
 jobs:
   setup:
     runs-on: ubuntu-latest
@@ -61,28 +64,18 @@ jobs:
 
       - name: 🔎 Vérifier l'existence des fichiers Docker Compose
         run: |
-          for service in ${{matrix.service}}; do
+          for service in ${{ matrix.service }}; do
             if [[ ! -f "$service/docker-compose.yml" ]]; then
               echo "❌ Fichier manquant : $service/docker-compose.yml"
               exit 1
             fi
           done
-      
+
       - name: 🕵️ Vérification de l'existence du fichier .env
         run: |
           ls -la ${{ matrix.service }}/
           cat ${{ matrix.service }}/.env || echo "❌ Fichier .env introuvable !"
-      
-      - name: 🕵️ Vérifier le chemin du `.env`
-        run: find $GITHUB_WORKSPACE -name ".env"
 
-      - name: 📂 Vérifier la présence du `.env`
-        run: |
-          echo "📂 Contenu du dossier ${{ matrix.service }} :"
-          ls -la ${{ matrix.service }}/
-          echo "📂 Contenu du répertoire courant :"
-          ls -la
-      
       - name: 📂 Copier `.env` sous un autre nom avant upload
         run: cp ${{ matrix.service }}/.env ${{ matrix.service }}/env_file_${{ matrix.service }}
     
@@ -91,16 +84,16 @@ jobs:
         with:
           name: env_file_${{ matrix.service }}
           path: ${{ matrix.service }}/env_file_${{ matrix.service }}
-          if-no-files-found : warn
+          if-no-files-found: warn
 
       - name: 🛠 Vérifier les artefacts après upload
         run: ls -la $GITHUB_WORKSPACE
-        
-  ###########################
-  #      DÉPLOIEMENT        #
-  ###########################
+
+###########################
+#      DÉPLOIEMENT        #
+###########################
   deploy:
-    needs: 
+    needs:
       - setup
       - matrix_setup
     runs-on: ubuntu-latest
@@ -133,10 +126,7 @@ jobs:
         with:
           name: env_file_${{ matrix.service }}
           path: ${{ matrix.service }}/
-          
-      - name: 🛠 Vérifier `.env` après la récupération
-        run: ls -la elk/
-          
+
       - name: 🚀 Déployer ${{ matrix.service }}
         run: |
           echo "🔄 Déploiement de ${{ matrix.service }}..."
@@ -153,7 +143,7 @@ jobs:
             echo "✅ Déploiement réussi pour ${{ matrix.service }}"
             echo "test_failed=false" >> $GITHUB_ENV
           fi
-    
+
       - name: 📦 Sauvegarder les logs si une erreur est détectée
         if: env.test_failed == 'true'
         uses: actions/upload-artifact@v4
@@ -161,9 +151,9 @@ jobs:
             name: logs_${{ matrix.service }}
             path: logs_${{ matrix.service }}.txt
 
-  ###########################
-  #  DÉTECTION DES ERREURS  #
-  ###########################
+###########################
+#  DÉTECTION DES ERREURS  #
+###########################
   check_errors:
     needs: deploy
     runs-on: ubuntu-latest
@@ -186,7 +176,6 @@ jobs:
           TEST_FAILED=false
           log_file="logs_${{ matrix.service }}.txt"
           
-          # Si le fichier de logs existe, on analyse les erreurs dedans
           if [[ -f "$log_file" && $(grep -i "error\|failed\|cannot\|swarm manager" "$log_file" | grep -v "Creating service") ]]; then
             echo "⚠️ Erreur détectée dans $log_file"
             TEST_FAILED=true
@@ -194,9 +183,9 @@ jobs:
           
           echo "test_failed=$TEST_FAILED" >> $GITHUB_OUTPUT
 
-  ###########################
-  #   GESTION DES LOGS      #
-  ###########################
+###########################
+#   GESTION DES LOGS      #
+###########################
   push_logs:
     needs: check_errors
     runs-on: ubuntu-latest
@@ -216,12 +205,13 @@ jobs:
           fi
 
       - name: 📥 Télécharger tous les logs
-        if: env.test_failed == 'true'
+        if: env.test_failed == 'true' && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop'
         uses: actions/download-artifact@v4
         with:
           path: logs/
 
       - name: 📝 Vérifier et générer un fichier de logs consolidé
+        if: github.ref != 'refs/heads/main'
         run: |
           LOGS_FOUND=false
           echo "📅 Date : $(date)" > error-log.txt
@@ -246,7 +236,7 @@ jobs:
           fi
 
       - name: 🚀 Déterminer la branche cible et Pousser les logs
-        if: env.ERROR_LOGS == 'true'
+        if: env.ERROR_LOGS == 'true' && github.ref != 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -265,9 +255,9 @@ jobs:
             git add error-log.txt
             git commit -m "Ajout des logs d'erreur via GitHub Actions" || echo "Aucune modification à commit"
             git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $BRANCH --force
-        
+
       - name: 🔀 Vérifier l'existence de la PR et créer une Pull Request vers `main` si nécessaire
-        if: env.ERROR_LOGS == 'false' || github.ref == 'refs/heads/develop'
+        if: env.ERROR_LOGS == 'false' && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -279,4 +269,3 @@ jobs:
             else
               echo "La PR vers main existe déjà. PR #$EXISTING_PR"
             fi
-        
