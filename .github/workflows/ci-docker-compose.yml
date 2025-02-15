@@ -2,10 +2,12 @@ name: Docker Swarm CI
 
 on:
   push:
-    pull-resquest :
-      branches:
-        - main
-        - develop
+    branches-ignore:
+      - main
+  pull_request:
+    branches:
+      - main
+      - develop
 
 ###########################
 #      CONFIGURATION      #
@@ -63,7 +65,7 @@ jobs:
 
       - name: 🔎 Vérifier l'existence des fichiers Docker Compose
         run: |
-          for service in ${{ matrix.service }}; do
+          for service in ${{matrix.service}}; do
             if [[ ! -f "$service/docker-compose.yml" ]]; then
               echo "❌ Fichier manquant : $service/docker-compose.yml"
               exit 1
@@ -204,12 +206,13 @@ jobs:
           fi
 
       - name: 📥 Télécharger tous les logs
-        if: env.test_failed == 'true'
+        if: env.test_failed == 'true' && github.ref != 'refs/heads/main' || github.ref != 'refs/heads/develop'
         uses: actions/download-artifact@v4
         with:
           path: logs/
 
       - name: 📝 Vérifier et générer un fichier de logs consolidé
+        if: github.ref != 'refs/heads/main'
         run: |
           LOGS_FOUND=false
           echo "📅 Date : $(date)" > error-log.txt
@@ -234,7 +237,7 @@ jobs:
           fi
 
       - name: 🚀 Déterminer la branche cible et Pousser les logs
-        if: env.ERROR_LOGS == 'true'
+        if: env.ERROR_LOGS == 'true' && github.ref != 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -254,8 +257,8 @@ jobs:
             git commit -m "Ajout des logs d'erreur via GitHub Actions" || echo "Aucune modification à commit"
             git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $BRANCH --force
 
-      - name: 🔀 Vérifier l'existence de la PR et créer une Pull Request vers `main` si nécessaire
-        if: env.ERROR_LOGS == 'false' && github.ref != 'refs/heads/main'
+      - name: 🔀 Vérifier l'existence de la PR et créer une Pull Request vers `develop` si nécessaire
+        if: env.ERROR_LOGS == 'false' && github.ref != 'refs/heads/main' || github.ref != 'refs/heads/develop'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
