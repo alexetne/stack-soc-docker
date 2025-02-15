@@ -65,13 +65,13 @@ jobs:
 
       - name: 🔎 Vérifier l'existence des fichiers Docker Compose
         run: |
-          for service in ${{matrix.service}}; do
+          for service in ${{ matrix.service }}; do
             if [[ ! -f "$service/docker-compose.yml" ]]; then
               echo "❌ Fichier manquant : $service/docker-compose.yml"
               exit 1
             fi
           done
-      
+
       - name: 🕵️ Vérification de l'existence du fichier .env
         run: |
           ls -la ${{ matrix.service }}/
@@ -206,7 +206,7 @@ jobs:
           fi
 
       - name: 📥 Télécharger tous les logs
-        if: env.test_failed == 'true' && github.ref != 'refs/heads/main' || github.ref != 'refs/heads/develop'
+        if: env.test_failed == 'true' && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop'
         uses: actions/download-artifact@v4
         with:
           path: logs/
@@ -258,7 +258,7 @@ jobs:
             git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $BRANCH --force
 
       - name: 🔀 Vérifier l'existence de la PR et créer une Pull Request vers `develop` si nécessaire
-        if: env.ERROR_LOGS == 'false' && github.ref != 'refs/heads/main' || github.ref != 'refs/heads/develop'
+        if: env.ERROR_LOGS == 'false' && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
