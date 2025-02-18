@@ -1,5 +1,5 @@
 
-name: Docker Lint
+name: Docker Compose Lint
 on: workflow_call
 jobs:
   lint:
@@ -7,7 +7,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Lint Dockerfiles
-        uses: hadolint/hadolint-action@v1.6.0
-        with:
-          dockerfile: '**/Dockerfile'
+      - name: Install Docker Compose Linter
+        run: |
+          curl -L https://github.com/lintingz/docker-compose-linter/releases/download/v0.3.1/docker-compose-linter-linux -o /usr/local/bin/docker-compose-linter
+          chmod +x /usr/local/bin/docker-compose-linter
+      - name: Lint Docker Compose files
+        run: docker-compose-linter **/docker-compose.yml
