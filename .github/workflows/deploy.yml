@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [elk, opencti, openbas]
+        service: ${{ fromJSON(needs.services.outputs.list) }}
     steps:
       - name: Initialize Docker Swarm
         run: docker swarm init || echo "Already initialized"

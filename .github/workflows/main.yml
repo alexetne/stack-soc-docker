@@ -2,10 +2,15 @@
 name: Main CI Orchestrator
 on: [push, pull_request]
 jobs:
-  matrix:
-    uses: ./.github/workflows/matrix.yml
+  services:
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.set-services.outputs.services }}
+    steps:
+      - id: set-services
+        run: echo "::set-output name=services::[\"elk\", \"opencti\", \"openbas\"]"
   setup:
-    needs: matrix
+    needs: services
     uses: ./.github/workflows/setup.yml
   build:
     needs: setup
