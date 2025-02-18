@@ -1,0 +1,11 @@
+
+name: Docker Services Matrix
+on: workflow_call
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.set-matrix.outputs.services }}
+    steps:
+      - id: set-matrix
+        run: echo "::set-output name=services::elk,opencti,openbas"

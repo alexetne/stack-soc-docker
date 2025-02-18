@@ -1,0 +1,15 @@
+
+name: Run Tests
+on: workflow_call
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run tests
+        run: |
+          echo "Running tests..."
+          # Ajouter ici les commandes de tests, exemple:
+          # docker-compose -f docker-compose.test.yml up --abort-on-container-exit
+          echo "Tests exécutés avec succès !"

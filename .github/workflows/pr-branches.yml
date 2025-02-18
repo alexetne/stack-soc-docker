@@ -1,0 +1,16 @@
+
+name: PR and Branch Management
+on: workflow_call
+jobs:
+  pr_management:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Manage PRs and Branches
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            gh pr create --base main --head develop --title "Auto PR: Develop to Main" --body "Auto-generated PR."
+          fi

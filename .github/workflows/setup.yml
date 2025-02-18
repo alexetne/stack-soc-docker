@@ -1,0 +1,16 @@
+
+name: Setup Environment
+on: workflow_call
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Initialize Docker Swarm
+        run: docker swarm init || echo "Already initialized"
+      - name: Save workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace
+          path: .

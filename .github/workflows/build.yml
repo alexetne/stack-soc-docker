@@ -1,0 +1,25 @@
+
+name: Build Docker Services
+on: workflow_call
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJSON(needs.services.outputs.list) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Restore workspace
+        uses: actions/download-artifact@v4
+        with:
+          name: workspace
+      - name: Check Docker Compose files
+        run: test -f ${{ matrix.service }}/docker-compose.yml || exit 1
+      - name: Save env files
+        run: cp ${{ matrix.service }}/.env env_${{ matrix.service }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: env_${{ matrix.service }}
+          path: env_${{ matrix.service }}
+          retention-days: 5

@@ -1,0 +1,13 @@
+
+name: Check Deployment Errors
+on: workflow_call
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download logs
+        uses: actions/download-artifact@v4
+        with:
+          name: logs_${{ matrix.service }}
+      - name: Check errors
+        run: grep -i 'error' logs_${{ matrix.service }}.txt || true

@@ -1,0 +1,57 @@
+name: Main CI Orchestrator
+on: [push, pull_request]
+jobs:
+  services:
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.set-services.outputs.list }}
+    steps:
+      - id: set-services
+        run: echo 'list=["elk","opencti","openbas"]' >> $GITHUB_OUTPUT
+
+  setup:
+    needs: services
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup
+        uses: ./.github/workflows/setup.yml
+
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build
+        uses: ./.github/workflows/build.yml
+
+  tests:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tests
+        uses: ./.github/workflows/tests.yml
+
+  deploy:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy
+        uses: ./.github/workflows/deploy.yml
+  check:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check
+        uses: ./.github/workflows/check.yml
+  logs:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Logs
+        uses: ./.github/workflows/logs.yml
+
+  pr_management:
+    needs: logs
+    runs-on: ubuntu-latest
+    steps:
+      - name: PR Management
+        uses: ./.github/workflows/pr-management.yml
