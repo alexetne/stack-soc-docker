@@ -206,7 +206,7 @@ jobs:
           fi
 
       - name: 📥 Télécharger tous les logs
-        if: env.test_failed == 'true' && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop'
+        if: env.test_failed == 'true' && github.ref != 'refs/heads/main'
         uses: actions/download-artifact@v4
         with:
           path: logs/
@@ -244,18 +244,17 @@ jobs:
             git config --global user.name "GitHub Actions"
             git config --global user.email "github-actions@github.com"
         
-            TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
-            BRANCH="erreur-$TIMESTAMP"
-        
-            if git rev-parse --verify $BRANCH; then
-              echo "La branche $BRANCH existe déjà, on passe à l'étape suivante."
+            git fetch origin
+            if git rev-parse --verify erreur; then
+              echo "La branche 'erreur' existe déjà, on passe à l'étape suivante."
             else
-              git checkout -b $BRANCH
+              git checkout -b erreur
+              git push origin erreur
             fi
         
             git add error-log.txt
             git commit -m "Ajout des logs d'erreur via GitHub Actions" || echo "Aucune modification à commit"
-            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $BRANCH --force
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git erreur --force
 
       - name: 🔀 Vérifier l'existence de la PR et créer une Pull Request si nécessaire
         if: env.ERROR_LOGS == 'false' 
@@ -281,4 +280,3 @@ jobs:
               else
                 echo "Pas de création de PR nécessaire pour la branche main."
               fi
-    
