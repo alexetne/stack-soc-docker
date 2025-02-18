@@ -1,0 +1,16 @@
+
+name: Manage Logs
+on: workflow_call
+jobs:
+  logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Download all logs
+        uses: actions/download-artifact@v4
+      - name: Push error logs to branch
+        run: |
+          git add error-log.txt
+          git commit -m "Add error logs"
+          git push

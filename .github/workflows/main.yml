@@ -1,0 +1,28 @@
+
+name: Main CI Orchestrator
+on: [push, pull_request]
+jobs:
+  matrix:
+    uses: ./.github/workflows/matrix.yml
+  setup:
+    needs: matrix
+    uses: ./.github/workflows/setup.yml
+  build:
+    needs: setup
+    uses: ./.github/workflows/build.yml
+  deploy:
+    needs: build
+    uses: ./.github/workflows/deploy.yml
+  check:
+    needs: deploy
+    uses: ./.github/workflows/check.yml
+  logs:
+    needs: check
+    uses: ./.github/workflows/logs.yml
+  security:
+    uses: ./.github/workflows/security.yml
+  docker_lint:
+    uses: ./.github/workflows/docker-lint.yml
+  pr_management:
+    needs: logs
+    uses: ./.github/workflows/pr-branches.yml

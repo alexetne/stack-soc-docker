@@ -1,0 +1,12 @@
+
+name: Docker Security Scan
+on: workflow_call
+jobs:
+  trivy_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Trivy
+        run: |
+          sudo apt-get install trivy -y
+      - name: Scan Docker Images
+        run: trivy image --no-progress ${{ matrix.service }}
