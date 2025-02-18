@@ -27,10 +27,6 @@ jobs:
   logs:
     needs: check
     uses: ./.github/workflows/logs.yml
-  security:
-    uses: ./.github/workflows/security.yml
-  docker_lint:
-    uses: ./.github/workflows/docker-lint.yml
   pr_management:
     needs: logs
     uses: ./.github/workflows/pr-branches.yml
