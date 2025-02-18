@@ -1,5 +1,0 @@
-
-services:
-  - elk
-  - opencti
-  - openbas

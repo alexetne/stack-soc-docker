@@ -5,24 +5,21 @@ jobs:
   services:
     runs-on: ubuntu-latest
     outputs:
-      list: ${{ steps.set-services.outputs.services }}
+      list: ${{ steps.set-services.outputs.list }}
     steps:
       - id: set-services
-        run: echo "::set-output name=services::[\"elk\", \"opencti\", \"openbas\"]"
+        run: echo "::set-output name=list::[\"elk\", \"opencti\", \"openbas\"]"
   setup:
     needs: services
     uses: ./.github/workflows/setup.yml
-  security:
-    needs: setup
-    uses: ./.github/workflows/security.yml
-  docker_lint:
-    needs: setup
-    uses: ./.github/workflows/docker-lint.yml
   build:
-    needs: [setup, security, docker_lint]
+    needs: setup
     uses: ./.github/workflows/build.yml
-  deploy:
+  tests:
     needs: build
+    uses: ./.github/workflows/tests.yml
+  deploy:
+    needs: tests
     uses: ./.github/workflows/deploy.yml
   check:
     needs: deploy
@@ -30,6 +27,10 @@ jobs:
   logs:
     needs: check
     uses: ./.github/workflows/logs.yml
+  security:
+    uses: ./.github/workflows/security.yml
+  docker_lint:
+    uses: ./.github/workflows/docker-lint.yml
   pr_management:
     needs: logs
     uses: ./.github/workflows/pr-branches.yml
